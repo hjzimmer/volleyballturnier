@@ -5,6 +5,66 @@
   <title>Gruppen</title>
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+  <style>
+    /* Mobile Optimierung */
+    @media (max-width: 768px) {
+        body.container {
+            padding-left: 10px;
+            padding-right: 10px;
+        }
+        
+        .nav-tabs {
+            font-size: 0.85rem;
+        }
+        
+        .nav-link {
+            padding: 0.4rem 0.6rem;
+        }
+        
+        .card-header h3 {
+            font-size: 1.3rem;
+        }
+        
+        .col-md-6 h5 {
+            font-size: 1.1rem;
+            margin-bottom: 10px;
+        }
+        
+        /* Tabellen kompakter */
+        .table-sm {
+            font-size: 0.75rem;
+        }
+        
+        .table-sm td, .table-sm th {
+            padding: 0.4rem 0.3rem;
+        }
+        
+        /* Badge kleiner */
+        .badge {
+            font-size: 0.65rem;
+        }
+        
+        /* Spalten auf mobil untereinander */
+        .row > .col-md-6 {
+            margin-bottom: 20px;
+        }
+    }
+    
+    @media (max-width: 576px) {
+        .table-sm {
+            font-size: 0.7rem;
+        }
+        
+        .card-header h3 {
+            font-size: 1.1rem;
+        }
+        
+        /* Sehr kleine Screens: noch kompaktere Tabelle */
+        .table-sm td, .table-sm th {
+            padding: 0.3rem 0.2rem;
+        }
+    }
+  </style>
 </head>
 <body class="container py-4">
 
@@ -200,7 +260,7 @@ foreach ($groups as $group):
         
         <div class="row">
             <!-- Linke Spalte: Spiele der Gruppe -->
-            <div class="col-md-6">
+            <div class="col-md-6 col-12">
                 <h5>Spiele der Gruppe</h5>
                 <table class="table table-sm table-striped">
                     <thead>
@@ -262,20 +322,20 @@ foreach ($groups as $group):
             </div>
             
             <!-- Rechte Spalte: Tabelle -->
-            <div class="col-md-6">
+            <div class="col-md-6 col-12">
                 <h5>Tabelle</h5>
                 <div class="table-responsive">
                     <table class="table table-sm table-bordered table-hover">
                         <thead class="table-light">
                             <tr>
-                                <th class="text-center">Platz</th>
-                                <th>Team</th>
-                                <th class="text-center" title="Satzpunkte">Pkt</th>
-                                <th class="text-center" title="Gewonnene Sätze">S+</th>
-                                <th class="text-center" title="Unentschiedene Sätze">S=</th>
-                                <th class="text-center" title="Verlorene Sätze">S-</th>
-                                <th class="text-center" title="Satzpunkte">Satzpunkte</th>
-                                <th class="text-center" title="Punktdifferenz">Diff</th>
+                                <th class="text-center" style="min-width: 35px;">Pl.</th>
+                                <th style="min-width: 80px;">Team</th>
+                                <th class="text-center" title="Satzpunkte" style="min-width: 35px;">Pkt</th>
+                                <th class="text-center d-none d-sm-table-cell" title="Gewonnene Sätze" style="min-width: 35px;">S+</th>
+                                <th class="text-center d-none d-md-table-cell" title="Unentschiedene Sätze" style="min-width: 35px;">S=</th>
+                                <th class="text-center d-none d-sm-table-cell" title="Verlorene Sätze" style="min-width: 35px;">S-</th>
+                                <th class="text-center d-none d-lg-table-cell" title="Satzpunkte" style="min-width: 50px;">Satzpkt</th>
+                                <th class="text-center" title="Punktdifferenz" style="min-width: 40px;">Diff</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -287,10 +347,10 @@ foreach ($groups as $group):
                                 <td class="text-center fw-bold"><?= $rank ?></td>
                                 <td><?= htmlspecialchars($standing['name']) ?></td>
                                 <td class="text-center fw-bold"><?= $standing['points'] ?></td>
-                                <td class="text-center"><?= $standing['sets_won'] ?></td>
-                                <td class="text-center"><?= $standing['sets_draw'] ?></td>
-                                <td class="text-center"><?= $standing['sets_lost'] ?></td>
-                                <td class="text-center"><?= $standing['points_scored'] ?>:<?= $standing['points_conceded'] ?></td>
+                                <td class="text-center d-none d-sm-table-cell"><?= $standing['sets_won'] ?></td>
+                                <td class="text-center d-none d-md-table-cell"><?= $standing['sets_draw'] ?></td>
+                                <td class="text-center d-none d-sm-table-cell"><?= $standing['sets_lost'] ?></td>
+                                <td class="text-center d-none d-lg-table-cell"><?= $standing['points_scored'] ?>:<?= $standing['points_conceded'] ?></td>
                                 <td class="text-center <?= $standing['point_diff'] > 0 ? 'text-success' : ($standing['point_diff'] < 0 ? 'text-danger' : '') ?>">
                                     <?= $standing['point_diff'] > 0 ? '+' : '' ?><?= $standing['point_diff'] ?>
                                 </td>

@@ -5,6 +5,61 @@
   <title>Gesamttabelle</title>
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+  <style>
+    /* Mobile Optimierung */
+    @media (max-width: 768px) {
+        body.container {
+            padding-left: 10px;
+            padding-right: 10px;
+        }
+        
+        .nav-tabs {
+            font-size: 0.85rem;
+        }
+        
+        .nav-link {
+            padding: 0.4rem 0.6rem;
+        }
+        
+        h2, h3, h4, h5 {
+            font-size: 1.2rem !important;
+        }
+        
+        .card-header h5 {
+            font-size: 1.1rem !important;
+        }
+        
+        .table {
+            font-size: 0.75rem;
+        }
+        
+        .table td, .table th {
+            padding: 0.4rem 0.3rem;
+        }
+        
+        .badge {
+            font-size: 0.65rem;
+        }
+        
+        .card {
+            margin-bottom: 15px;
+        }
+    }
+    
+    @media (max-width: 576px) {
+        .table {
+            font-size: 0.7rem;
+        }
+        
+        .table td, .table th {
+            padding: 0.3rem 0.2rem;
+        }
+        
+        h2, h3, h4, h5 {
+            font-size: 1rem !important;
+        }
+    }
+  </style>
 </head>
 <body class="container py-4">
 

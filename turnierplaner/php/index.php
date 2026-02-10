@@ -146,9 +146,80 @@ foreach ($matches as $m) {
 .team-loser {
     color: #f08080 !important;
 }
-</style>
 
-<div class="table-responsive">
+/* Mobile Optimierung */
+@media (max-width: 768px) {
+    /* Tabelle wird zu Cards-Layout */
+    .mobile-time-block {
+        margin-bottom: 20px;
+        border: 2px solid #667eea;
+        border-radius: 8px;
+        overflow: hidden;
+    }
+    
+    .mobile-time-header {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        padding: 10px 15px;
+        font-weight: bold;
+        font-size: 1.1rem;
+    }
+    
+    .mobile-field-label {
+        background: #f8f9fa;
+        padding: 8px 15px;
+        font-weight: 600;
+        color: #495057;
+        border-top: 1px solid #dee2e6;
+    }
+    
+    .mobile-match-content {
+        padding: 15px;
+        border-top: 1px solid #dee2e6;
+    }
+    
+    .match-card {
+        padding: 12px;
+        margin-bottom: 0;
+    }
+    
+    .match-teams {
+        font-size: 0.9rem;
+        line-height: 1.4;
+    }
+    
+    .match-info {
+        font-size: 0.75rem;
+    }
+    
+    /* Navigation kompakter */
+    .nav-tabs {
+        font-size: 0.85rem;
+    }
+    
+    .nav-link {
+        padding: 0.4rem 0.6rem;
+    }
+    
+    /* Container padding reduzieren */
+    body.container {
+        padding-left: 10px;
+        padding-right: 10px;
+    }
+}
+
+@media (max-width: 576px) {
+    .match-teams {
+        font-size: 0.85rem;
+    }
+    
+    .time-header, .mobile-time-header {
+        font-size: 1rem;
+    }
+}</style>
+
+<!-- Desktop: Tabellen-Layout -->
+<div class="table-responsive d-none d-md-block">
 <table class="table table-bordered align-middle">
 <thead class="table-light">
 <tr>
@@ -250,6 +321,93 @@ foreach ($matchesByTime as $time => $timeData):
 <?php endforeach; ?>
 </tbody>
 </table>
+</div>
+
+<!-- Mobile: Gestapeltes Card-Layout -->
+<div class="d-block d-md-none">
+<?php 
+$currentPhase = null;
+foreach ($matchesByTime as $time => $timeData): 
+    // Phasen-Überschrift
+    if ($currentPhase !== $timeData['phase']) {
+        $currentPhase = $timeData['phase'];
+        $phaseLabel = $timeData['phase'] === 'group' ? '📋 Gruppenphase' : '🏆 Finalrunde';
+?>
+<div class="alert alert-secondary fw-bold text-center mb-3"><?= $phaseLabel ?></div>
+<?php
+    }
+    
+    // Bestimme Gruppe
+    $groupName = null;
+    if (isset($timeData[1]) && $timeData[1]['group_name']) {
+        $groupName = $timeData[1]['group_name'];
+    } elseif (isset($timeData[2]) && $timeData[2]['group_name']) {
+        $groupName = $timeData[2]['group_name'];
+    }
+?>
+<div class="mobile-time-block">
+    <div class="mobile-time-header">
+        <?= $time ?>
+        <?php if ($groupName): ?>
+            <span class="badge bg-light text-dark ms-2" style="font-size: 0.75rem;">Gruppe <?= htmlspecialchars($groupName) ?></span>
+        <?php endif; ?>
+    </div>
+    
+    <?php for ($field = 1; $field <= 2; $field++): ?>
+        <?php if (isset($timeData[$field])): 
+            $m = $timeData[$field];
+            $team1 = resolveTeam($db, $m["team1_id"], $m["team1_ref"]);
+            $team2 = resolveTeam($db, $m["team2_id"], $m["team2_ref"]);
+            
+            $isTeam1Winner = ($m['finished'] && $m['winner_id'] == $m['team1_id']);
+            $isTeam2Winner = ($m['finished'] && $m['winner_id'] == $m['team2_id']);
+            $isTeam1Loser = ($m['finished'] && $m['loser_id'] == $m['team1_id']);
+            $isTeam2Loser = ($m['finished'] && $m['loser_id'] == $m['team2_id']);
+            
+            $resultDisplay = "";
+            if ($m["finished"]) {
+                $sets = getSetResults($db, $m["id"]);
+                if (count($sets) > 0) {
+                    $setScores = [];
+                    foreach ($sets as $set) {
+                        $setScores[] = $set['team1_points'] . ":" . $set['team2_points'];
+                    }
+                    $resultDisplay = '<div class="mt-2"><span class="badge bg-success">' . implode(' | ', $setScores) . '</span></div>';
+                }
+            }
+        ?>
+        <div class="mobile-field-label">Feld <?= $field ?></div>
+        <div class="mobile-match-content">
+            <div class="match-card <?= $m['finished'] ? 'finished' : '' ?>">
+                <div class="match-info mb-2">
+                    <span class="badge bg-secondary"><?= htmlspecialchars($m["round"]) ?></span>
+                    <span class="text-muted ms-2">#<?= $m["id"] ?></span>
+                </div>
+                
+                <div class="match-teams">
+                    <span class="<?= $isTeam1Winner ? 'text-success fw-bold' : ($isTeam1Loser ? 'team-loser' : '') ?>">
+                        <?= htmlspecialchars($team1) ?>
+                    </span>
+                    <strong class="text-primary"> - </strong>
+                    <span class="<?= $isTeam2Winner ? 'text-success fw-bold' : ($isTeam2Loser ? 'team-loser' : '') ?>">
+                        <?= htmlspecialchars($team2) ?>
+                    </span>
+                </div>
+                
+                <?= $resultDisplay ?>
+                
+                <div class="match-info mt-2">
+                    <small>
+                        <strong>Schiri:</strong> 
+                        <?= $m["referee"] ? htmlspecialchars($m["referee"]) : "<em class='text-muted'>TBD</em>" ?>
+                    </small>
+                </div>
+            </div>
+        </div>
+        <?php endif; ?>
+    <?php endfor; ?>
+</div>
+<?php endforeach; ?>
 </div>
 
 </body>

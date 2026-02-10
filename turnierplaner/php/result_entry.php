@@ -86,6 +86,100 @@ require 'db.php';
   <title>Ergebniseingabe</title>
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+  <style>
+    /* Mobile Optimierung */
+    @media (max-width: 768px) {
+        body.container {
+            padding-left: 10px;
+            padding-right: 10px;
+        }
+        
+        .nav-tabs {
+            font-size: 0.85rem;
+        }
+        
+        .nav-link {
+            padding: 0.4rem 0.6rem;
+        }
+        
+        .btn-sm {
+            font-size: 0.75rem;
+            padding: 0.3rem 0.5rem;
+        }
+        
+        .table {
+            font-size: 0.75rem;
+        }
+        
+        .table td, .table th {
+            padding: 0.4rem 0.3rem;
+        }
+        
+        .badge {
+            font-size: 0.65rem;
+        }
+        
+        /* Buttons in der Tabelle kleiner */
+        .table .btn {
+            font-size: 0.7rem;
+            padding: 0.2rem 0.4rem;
+        }
+        
+        /* Dropdown in Tabelle kleiner */
+        .table select {
+            font-size: 0.75rem;
+            padding: 0.2rem;
+        }
+        
+        /* Modal kompakter */
+        .modal-body {
+            padding: 10px;
+        }
+        
+        .modal-title {
+            font-size: 1rem;
+        }
+        
+        /* Aktionsbuttons untereinander statt nebeneinander */
+        .action-buttons .btn {
+            display: block;
+            width: 100%;
+            margin-bottom: 5px;
+        }
+        
+        .action-buttons form {
+            display: block;
+            width: 100%;
+        }
+    }
+    
+    @media (max-width: 576px) {
+        .table {
+            font-size: 0.7rem;
+        }
+        
+        .table td, .table th {
+            padding: 0.3rem 0.2rem;
+        }
+        
+        /* Sehr kleine Buttons */
+        .table .btn {
+            font-size: 0.65rem;
+            padding: 0.15rem 0.3rem;
+        }
+        
+        /* Button-Text auf sehr kleinen Screens kürzen */
+        .btn-action-text {
+            display: none;
+        }
+        
+        /* Badge kürzer */
+        .badge {
+            font-size: 0.6rem;
+            padding: 0.2rem 0.3rem;
+        }
+    }
+  </style>
 </head>
 <body class="container py-4">
 
@@ -472,13 +566,13 @@ $allTeams = $db->query("SELECT id, name FROM teams ORDER BY name")->fetchAll();
                     <table class="table table-sm table-striped">
                         <thead>
                             <tr>
-                                <th>Zeit</th>
-                                <th>Feld</th>
-                                <th>#</th>
-                                <th>Runde</th>
+                                <th class="d-none d-md-table-cell">Zeit</th>
+                                <th class="d-none d-lg-table-cell">Feld</th>
+                                <th class="d-none d-sm-table-cell">#</th>
+                                <th class="d-none d-md-table-cell">Runde</th>
                                 <th>Teams</th>
-                                <th>Schiedsrichter</th>
-                                <th>Status</th>
+                                <th class="d-none d-lg-table-cell">Schiedsrichter</th>
+                                <th class="d-none d-sm-table-cell">Status</th>
                                 <th>Aktion</th>
                             </tr>
                         </thead>
@@ -493,12 +587,39 @@ $allTeams = $db->query("SELECT id, name FROM teams ORDER BY name")->fetchAll();
                             $canEnterResult = $m['team1_id'] && $m['team2_id'];
                         ?>
                             <tr class="<?= $m['finished'] ? 'table-success' : '' ?>">
-                                <td><?= $time ?></td>
-                                <td><span class="badge bg-info"><?= $field ?></span></td>
-                                <td><?= $m['id'] ?></td>
-                                <td><span class="badge bg-secondary"><?= htmlspecialchars($m['round']) ?></span></td>
-                                <td><?= htmlspecialchars($team1) ?> - <?= htmlspecialchars($team2) ?></td>
-                                <td style="width: 120px;">
+                                <td class="d-none d-md-table-cell"><?= $time ?></td>
+                                <td class="d-none d-lg-table-cell"><span class="badge bg-info"><?= $field ?></span></td>
+                                <td class="d-none d-sm-table-cell"><?= $m['id'] ?></td>
+                                <td class="d-none d-md-table-cell"><span class="badge bg-secondary"><?= htmlspecialchars($m['round']) ?></span></td>
+                                <td>
+                                    <!-- Mobile: Zeige mehr Infos in dieser Spalte -->
+                                    <div class="d-md-none">
+                                        <small class="text-muted">#<?= $m['id'] ?> • <?= $time ?></small><br>
+                                    </div>
+                                    <strong><?= htmlspecialchars($team1) ?></strong>
+                                    <span class="text-muted">-</span>
+                                    <strong><?= htmlspecialchars($team2) ?></strong>
+                                    <!-- Mobile: Status hier anzeigen -->
+                                    <div class="d-sm-none mt-1">
+                                        <?php if ($m['finished']): 
+                                            $sets = $db->prepare("SELECT set_number, team1_points, team2_points FROM sets WHERE match_id = ? ORDER BY set_number");
+                                            $sets->execute([$m['id']]);
+                                            $setResults = $sets->fetchAll(PDO::FETCH_ASSOC);
+                                            $scoreDisplay = [];
+                                            foreach ($setResults as $set) {
+                                                $scoreDisplay[] = $set['team1_points'] . ':' . $set['team2_points'];
+                                            }
+                                        ?>
+                                            <span class="badge bg-success">✓ Beendet</span>
+                                            <small class="ms-2"><?= implode(' | ', $scoreDisplay) ?></small>
+                                        <?php elseif ($canEnterResult): ?>
+                                            <span class="badge bg-warning text-dark">Offen</span>
+                                        <?php else: ?>
+                                            <span class="badge bg-secondary">Warten</span>
+                                        <?php endif; ?>
+                                    </div>
+                                </td>
+                                <td class="d-none d-lg-table-cell" style="width: 120px;">
                                     <select class="form-select form-select-sm referee-select" data-match-id="<?= $m['id'] ?>">
                                         <option value="">-- Kein Schiri --</option>
                                         <?php foreach ($allTeams as $team):
@@ -511,7 +632,7 @@ $allTeams = $db->query("SELECT id, name FROM teams ORDER BY name")->fetchAll();
                                         <?php endforeach; ?>
                                     </select>
                                 </td>
-                                <td>
+                                <td class="d-none d-sm-table-cell">
                                     <?php if ($m['finished']): 
                                         // Hole Satzergebnisse
                                         $sets = $db->prepare("SELECT set_number, team1_points, team2_points FROM sets WHERE match_id = ? ORDER BY set_number");
@@ -530,15 +651,19 @@ $allTeams = $db->query("SELECT id, name FROM teams ORDER BY name")->fetchAll();
                                         <span class="badge bg-secondary">Warten auf Teams</span>
                                     <?php endif; ?>
                                 </td>
-                                <td>
+                                <td class="action-buttons">
                                     <?php if ($canEnterResult): ?>
-                                        <button class="btn btn-sm btn-primary" data-bs-toggle="modal" data-bs-target="#resultModal<?= $m['id'] ?>">
-                                            <?= $m['finished'] ? 'Bearbeiten' : 'Eintragen' ?>
+                                        <button class="btn btn-sm btn-primary mb-1" data-bs-toggle="modal" data-bs-target="#resultModal<?= $m['id'] ?>">
+                                            <span class="d-none d-sm-inline"><?= $m['finished'] ? 'Bearbeiten' : 'Eintragen' ?></span>
+                                            <span class="d-inline d-sm-none"><?= $m['finished'] ? '✏️' : '➕' ?></span>
                                         </button>
                                         <?php if ($m['finished']): ?>
-                                            <form method="post" style="display: inline;">
+                                            <form method="post" class="d-inline">
                                                 <input type="hidden" name="match_id" value="<?= $m['id'] ?>">
-                                                <button type="submit" name="delete_result" class="btn btn-sm btn-danger" onclick="return confirm('Ergebnis wirklich löschen?')">Löschen</button>
+                                                <button type="submit" name="delete_result" class="btn btn-sm btn-danger" onclick="return confirm('Ergebnis wirklich löschen?')">
+                                                    <span class="d-none d-sm-inline">Löschen</span>
+                                                    <span class="d-inline d-sm-none">🗑️</span>
+                                                </button>
                                             </form>
                                         <?php endif; ?>
                                     <?php endif; ?>

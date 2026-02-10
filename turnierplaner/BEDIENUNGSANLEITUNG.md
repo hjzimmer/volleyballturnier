@@ -152,32 +152,124 @@ Das System verwendet **dynamische Match-IDs** statt fester IDs. Dies ermöglicht
 
 ## Python Skripte
 
-### 🔴 **GEFÄHRLICH: Löscht alle Daten**
+### � **CLI - Command Line Interface**
 
-#### `main.py`
+#### Interaktiver Modus (EMPFOHLEN)
 ```bash
-python main.py
+python cli.py
+```
+
+**Zeigt interaktives Menü mit allen verfügbaren Aktionen:**
+
+```
+======================================================================
+           VOLLEYBALL TURNIER - VERWALTUNG
+======================================================================
+
+[GEFAEHRLICH - Loescht Daten]
+  [1] Init - Turnier neu initialisieren
+      Erstellt neue Datenbank, laedt Teams/Config, generiert Matches
+      [!] WARNUNG: LOESCHT ALLE EXISTIERENDEN DATEN!
+
+[SICHER - Aendert nur Zeitplanung/Zuordnungen]
+  [2] Schedule - Zeitplan neu berechnen
+      Berechnet Start-Zeiten und Feldzuordnungen neu
+
+  [3] Assign Refs - Schiedsrichter zuweisen
+      Weist automatisch Schiedsrichter fuer Gruppenspiele zu
+
+  [4] Rename Team - Team umbenennen
+      Interaktives Menue zum Umbenennen von Teams
+
+[VALIDIERUNG]
+  [5] Validate Config - Konfiguration pruefen
+      Prueft team_config.json auf Fehler und zeigt Statistiken
+
+[NUR ZUM TESTEN]
+  [6] Fill Results - Testdaten generieren
+      Fuellt alle Gruppenspiele mit Zufallsergebnissen
+      [!] WARNUNG: Ueberschreibt existierende Ergebnisse!
+
+  [q] Beenden
+```
+
+**Vorteile:**
+- Übersichtliche Darstellung aller Funktionen
+- Klare Kategorisierung (GEFÄHRLICH / SICHER / etc.)
+- Kurze Beschreibung jeder Aktion
+- Nach jeder Aktion zurück zum Menü
+- Mehrere Aktionen nacheinander ausführbar
+
+**Bedienung:**
+1. `python cli.py` starten
+2. Zahl (1-6) oder 'q' eingeben
+3. Aktion wird ausgeführt
+4. Enter drücken um zurück zum Menü zu gelangen
+5. Nächste Aktion wählen oder 'q' zum Beenden
+
+---
+
+#### Direkter Modus (für Skripting)
+```bash
+python cli.py <action>
+```
+
+**Verfügbare Aktionen:**
+- `python cli.py init` - Turnier initialisieren
+- `python cli.py schedule` - Zeitplan berechnen
+- `python cli.py assign_refs` - Schiedsrichter zuweisen
+- `python cli.py rename_team` - Team umbenennen
+- `python cli.py validate` - Konfiguration prüfen
+- `python cli.py fill_results` - Testdaten generieren
+
+**Vorteil:** Gut für Automatisierung und Skripte
+
+---
+
+### �🔴 **GEFÄHRLICH: Löscht alle Daten**
+
+#### `cli.py init` (EMPFOHLEN)
+```bash
+python cli.py init
 ```
 
 **Was es macht:**
 1. Erstellt neue Datenbank in `data/tournament.db` (**ÜBERSCHREIBT ALTE!**)
-2. Legt 10 Teams an (Team 1 - Team 10)
+2. Legt Teams aus `team_config.json` an
 3. Erstellt Gruppen A & B
 4. Generiert alle Gruppenspiele
 5. Weist Schiedsrichter zu
-6. Erstellt Endrunden-Matches
-7. Plant Zeiten und Felder ein
+6. Erstellt Endrunden-Matches aus `final_config.json`
+7. Plant Zeiten und Felder ein aus `turnier_config.json`
 
 **⚠️ WARNUNG:**
 - Löscht **ALLE** existierenden Daten
 - Überschreibt Teams, Gruppen, Ergebnisse
 - **NUR VOR TURNIERBEGINN** ausführen!
 
+**Alternative:** Einzelne Befehle direkt ausführen
+```bash
+python cli.py init
+```
+
 ---
 
-### 🟢 **SICHER: Nur Zeitplanung**
+#### `main.py` (Alternative zu CLI)
+```bash
+python main.py
+```
 
-#### `cli.py schedule`
+**Was es macht:** Identisch mit `cli.py init`
+
+**💡 Tipp:** Verwende lieber `cli.py init` für eine einheitliche CLI-Schnittstelle
+
+---
+
+### 🟢 **SICHER: CLI-Befehle**
+
+**💡 Tipp:** Nutze den interaktiven Modus `python cli.py` für eine übersichtliche Darstellung!
+
+#### `cli.py schedule` - Zeitplanung
 ```bash
 python cli.py schedule
 ```
@@ -199,9 +291,49 @@ python cli.py schedule
 
 ---
 
+#### `cli.py assign_refs` - Schiedsrichter zuweisen
+```bash
+python cli.py assign_refs
+```
+
+**Was es macht:**
+- Weist automatisch Schiedsrichter für alle Gruppenspiele zu
+- Stellt sicher, dass kein Team bei eigenem Spiel Schiedsrichter ist
+
+**✅ SICHER:** Ändert nur `referee_team_id`
+
+#### `cli.py validate` - Konfiguration validieren
+```bash
+python cli.py validate
+```
+
+**Was es macht:**
+- Prüft `team_config.json` auf Fehler
+- Zeigt Anzahl Teams, Gruppen, Matches
+- Berechnet geschätzte Turnierdauer
+- Warnt bei Problemen (doppelte IDs, ungleiche Gruppen, etc.)
+
+**✅ SICHER:** Liest nur, ändert nichts
+
+**Alternative:**
+```bash
+python validate_config.py
+```
+
+---
+
 ### 🟢 **SICHER: Team umbenennen**
 
-#### `rename_team.py`
+#### `cli.py rename_team` (EMPFOHLEN)
+```bash
+python cli.py rename_team
+```
+
+**Was es macht:**
+- Startet interaktives Menü zur Teamumbenennung
+- Identisch mit `rename_team.py`
+
+**Alternative:**
 ```bash
 python rename_team.py
 ```
@@ -236,7 +368,7 @@ Szenario: Team 3 kann nicht erscheinen, Team "Springer" ersetzt sie
 
 ### 🟢 **SICHER: Config validieren**
 
-#### `validate_config.py`
+#### `validate_config.py` (Alternative zu `cli.py validate`)
 ```bash
 python validate_config.py
 ```
@@ -287,7 +419,23 @@ TEAM-KONFIGURATION VALIDIERUNG
 
 ### 🟡 **VORSICHTIG: Testdaten**
 
-#### `fill_group_results.py`
+**💡 Tipp:** Option [6] im interaktiven Menü `python cli.py`
+
+#### `cli.py fill_results` (EMPFOHLEN)
+```bash
+python cli.py fill_results
+```
+
+**Was es macht:**
+- Füllt ALLE Gruppenspiele mit Zufallsergebnissen
+- Nützlich zum Testen des Web-Interfaces
+
+**⚠️ WARNUNG:**
+- Überschreibt existierende Gruppenergebnisse
+- Nur für Tests vor dem Turnier!
+- **Nicht während echtem Turnier verwenden!**
+
+**Alternative:**
 ```bash
 python fill_group_results.py
 ```
@@ -296,11 +444,6 @@ python fill_group_results.py
 - `[1]` Füllt ALLE Gruppenspiele mit Zufallsergebnissen
 - `[2]` Löscht ALLE Gruppenergebnisse
 - `[q]` Beenden
-
-**⚠️ WARNUNG:**
-- Überschreibt existierende Gruppenergebnisse
-- Nur für Tests vor dem Turnier!
-- **Nicht während echtem Turnier verwenden!**
 
 ---
 
@@ -352,6 +495,12 @@ python check_match_21.py
 
 ### 🌐 **Haupt-Seiten**
 
+**Einheitlicher Header:**
+Alle PHP-Seiten zeigen oben:
+- **Turniername** (aus `turnier_config.json` → `tournament_name`)
+- **Logo** (optional, aus `turnier_config.json` → `logo_path`)
+- Navigation zwischen den Seiten
+
 #### `index.php` - Spielplan
 **URL:** `http://localhost/turnierplaner/php/index.php`
 
@@ -359,7 +508,7 @@ python check_match_21.py
 - Alle Matches nach Zeit sortiert
 - 2-Spalten-Layout (Feld 1 & 2)
 - Farbcodierung: Gewinner (grün), Verlierer (hellrot)
-- Satzergebnisse bei fertigen Matches
+- Satzergebnisse bei fertigen Matches (1 oder 2 Sätze je nach Konfiguration)
 - Zugeordnete Schiedsrichter (read-only)
 
 **Features:**
@@ -373,7 +522,8 @@ python check_match_21.py
 **URL:** `http://localhost/turnierplaner/php/groups.php`
 
 **Anzeige:**
-- Gruppe A & B Tabellen nebeneinander
+- **Neues Layout:** Pro Gruppe links die Spiele, rechts die Tabelle (2-spaltig)
+- Gruppe A & B untereinander
 - Sortierung: Satzpunkte → Direkter Vergleich → Punktdifferenz
 - Spalten: Team, Satzpunkte, S/U/N, gewonnene/verlorene Sätze, Punktdifferenz
 
@@ -409,7 +559,7 @@ python check_match_21.py
 
 1. **Ergebnisse eintragen:**
    - Button "Eintragen" oder "Bearbeiten"
-   - Modal-Dialog mit 2 Sätzen
+   - Modal-Dialog mit 1 oder 2 Sätzen (abhängig von `sets_per_match` in `turnier_config.json`)
    - Speichern → automatische Gewinner-Berechnung
 
 2. **Schiedsrichter zuweisen:**
@@ -429,10 +579,16 @@ python check_match_21.py
 
 ---
 
-#### `table.php`
+#### `table.php` - Turnier-Übersicht
 **URL:** `http://localhost/turnierplaner/php/table.php`
 
-Einfache Tabellenansicht (falls eigenständig vorhanden)
+**Anzeige:**
+- **Turnierstatus** (volle Breite oben): Prozentsatz abgeschlossener Matches
+- **Letzte 4 Spiele:** Farbcodierung für Gewinner (grün) und Verlierer (rot)
+- **Nächste Spiele:** Anstehende Matches
+- **Tabellen/Platzierungen:** 
+  - Während Gruppenphase: Zeigt beide Gruppentabellen
+  - Nach Gruppenphase: Zeigt finale Platzierungen 1-10
 
 ---
 
@@ -495,38 +651,57 @@ Alternative Spielplanansicht (falls eigenständig vorhanden)
 ### `turnier_config.json`
 ```json
 {
-  "tournament_name": "Volleyball Turnier 2026",
-  "logo_path": "data/logo.png",
-  "sets_per_match": 2,
-  "tournament_start": "2026-02-09T09:00:00",
+  "tournament_name": "3. Otti Fun Cup - 2026",
+  "logo_path": "data/vsvlogo.jpg",
+  "tournament_start": "2026-04-25T09:00",
   "fields": 2,
-  "set_minutes": 12,
-  "pause_between_sets": 3,
-  "pause_between_matches": 5,
+  "sets_per_match": 2,
+  "set_minutes": 9,
+  "pause_between_sets": 1,
+  "pause_between_matches": 6,
   "lunch_break": {
-    "start": "2026-02-09T12:00:00",
-    "duration_minutes": 30
+    "start": "2026-04-25T12:15",
+    "duration_minutes": 25
   },
   "result_entry_password": "turnier2026"
 }
 ```
 
 **Parameter:**
-- `tournament_name`: Name des Turniers (wird im Header angezeigt)
-- `logo_path`: Pfad zum Logo-Bild (optional, relativ zum Hauptverzeichnis)
-- `sets_per_match`: Anzahl der Sätze pro Match (1 oder 2)
-- `tournament_start`: Startzeit des Turniers
+- `tournament_name`: **Name des Turniers** - Wird im Header aller PHP-Seiten angezeigt
+- `logo_path`: **Logo-Pfad** (optional) - Pfad zum Logo-Bild, relativ zum Hauptverzeichnis (z.B. `"data/vsvlogo.jpg"`). Wird im Header aller PHP-Seiten angezeigt. Wenn nicht vorhanden/leer, wird nur der Turniername gezeigt.
+- `sets_per_match`: **Sätze pro Match** (1 oder 2)
+  - `2`: Klassisches Volleyball mit 2 Sätzen (Standard)
+  - `1`: Schnelleres Turnier mit nur 1 Satz pro Match
+  - Beeinflusst:
+    - Ergebniseingabe-Formular (`result_entry.php`)
+    - Match-Dauer-Berechnung (Zeitplanung)
+    - Testdaten-Generierung (`fill_group_results.py`)
+- `tournament_start`: Startzeit des Turniers (Format: ISO 8601)
 - `fields`: Anzahl paralleler Felder (meist 2)
-- `set_minutes`: Dauer eines Satzes
-- `pause_between_sets`: Pause zwischen den Sätzen (bei sets_per_match=1 wird diese ignoriert)
-- `pause_between_matches`: Pause nach jedem Match
+- `set_minutes`: Dauer eines Satzes in Minuten
+- `pause_between_sets`: Pause zwischen den Sätzen in Minuten (wird bei `sets_per_match=1` ignoriert)
+- `pause_between_matches`: Pause nach jedem Match in Minuten
 - `lunch_break`: Automatische Mittagspause
-- `result_entry_password`: Passwort für die Ergebniseingabe
+  - `start`: Bevorzugte Startzeit
+  - `duration_minutes`: Dauer in Minuten
+- `result_entry_password`: Passwort für die Ergebniseingabe (optional, kann leer bleiben)
 
 **Änderung anwenden:**
 ```bash
+# Nur Zeitplanung neu berechnen (bei Änderung von Zeiten/Pausen):
 python cli.py schedule
+
+# Komplette Neuinitialisierung (bei Änderung von sets_per_match oder tournament_name):
+# ⚠️ WARNUNG: Löscht alle Ergebnisse!
+python cli.py init
 ```
+
+**Logo einrichten:**
+1. Logo-Datei ins `data/` Verzeichnis kopieren (z.B. `data/vereinslogo.png`)
+2. In `turnier_config.json` den Pfad eintragen: `"logo_path": "data/vereinslogo.png"`
+3. Logo wird automatisch im Header aller PHP-Seiten angezeigt
+4. Unterstützte Formate: PNG, JPG, GIF, SVG
 
 ---
 
@@ -612,10 +787,28 @@ Datenbankschema mit allen Tabellen. Wird von `db.py` verwendet.
    ```
 
 2. **Konfiguration anpassen:**
-   - `turnier_config.json` bearbeiten (Startzeit, Felder, Zeiten)
+   - `turnier_config.json` bearbeiten:
+     - `tournament_name`: Turnierbezeichnung
+     - `logo_path`: Pfad zum Vereins-/Turnier-Logo (optional)
+     - `sets_per_match`: 1 oder 2 Sätze pro Match
+     - `tournament_start`: Startzeit
+     - Spielfeld-/Pausen-Zeiten
    - `final_config.json` prüfen (bereits optimal konfiguriert)
 
 3. **Datenbank initialisieren:**
+   
+   **Interaktiver Modus (empfohlen):**
+   ```bash
+   python cli.py
+   # Im Menü Option [1] wählen
+   ```
+   
+   **Direkter Modus:**
+   ```bash
+   python cli.py init
+   ```
+   
+   **Alternative:**
    ```bash
    python main.py
    ```
@@ -626,11 +819,20 @@ Datenbankschema mit allen Tabellen. Wird von `db.py` verwendet.
    - Zeitplan korrekt?
 
 5. **Optional: Testdaten:**
+   
+   **Interaktiver Modus:**
    ```bash
-   python fill_group_results.py
+   python cli.py
+   # Im Menü Option [6] wählen
    ```
-   - `[1]` zum Füllen, dann Web-Interface prüfen
-   - `[2]` zum Löschen vor echtem Turnier
+   
+   **Direkter Modus:**
+   ```bash
+   python cli.py fill_results
+   ```
+   - Füllt automatisch alle Gruppenspiele mit Zufallsergebnissen
+   - Web-Interface prüfen
+   - Vor echtem Turnier: Menü Option [1] oder `python cli.py init` ausführen (löscht Testdaten)
 
 ---
 
@@ -661,6 +863,13 @@ Datenbankschema mit allen Tabellen. Wird von `db.py` verwendet.
 
 **Szenario:** Turnier läuft später, oder Pause ändern
 
+**Interaktiver Modus:**
+```bash
+python cli.py
+# Option [2] wählen
+```
+
+**Direkter Modus:**
 ```bash
 # 1. turnier_config.json bearbeiten
 # 2. Neu berechnen:
@@ -676,9 +885,21 @@ python cli.py schedule
 
 **Szenario:** Team kann nicht erscheinen, Ersatz-Team kommt
 
-**Option 1 - Einzelnes Team umbenennen:**
+**Interaktiver Modus (empfohlen):**
 ```bash
-python rename_team.py
+python cli.py
+# Option [4] wählen
+# → [1] auswählen für einzelnes Team
+# → Team-ID eingeben (z.B. 3)
+# → Neuen Namen eingeben (z.B. "Springer-Team")
+# → Bestätigen
+```
+
+**Direkter Modus:**
+
+**Option 1 - Einzelnes Team umbenennen:****
+```bash
+python cli.py rename_team
 # → [1] auswählen
 # → Team-ID eingeben (z.B. 3)
 # → Neuen Namen eingeben (z.B. "Springer-Team")
@@ -689,7 +910,7 @@ python rename_team.py
 ```bash
 # 1. team_config.json bearbeiten
 # 2. Skript ausführen:
-python rename_team.py
+python cli.py rename_team
 # → [2] auswählen
 # → Alle geänderten Teams werden aktualisiert
 ```
@@ -725,15 +946,15 @@ Zeigt alle korrigierten Matches und aktualisiert `winner_id`/`loser_id`.
 
 ### 🔴 **NIEMALS während eines Turniers:**
 
-#### ❌ `python main.py`
+#### ❌ `python cli.py init` / `python main.py`
 - **LÖSCHT ALLES!**
 - Neue Datenbank
 - Alle Ergebnisse weg
 - Nur vor Turnierbeginn!
 
-#### ❌ `python fill_group_results.py` → `[1]` oder `[2]`
+#### ❌ `python cli.py fill_results` / `python fill_group_results.py`
 - Überschreibt/löscht Gruppenergebnisse
-- Nur für Tests!
+- Nur für Tests vor dem Turnier!
 
 #### ❌ Datei `data/tournament.db` löschen oder ersetzen
 - Alle Daten verloren
@@ -802,7 +1023,7 @@ copy tournament_backup.db tournament.db
 
 **Lösung:**
 ```bash
-python rename_team.py
+python cli.py rename_team
 ```
 - Wähle `[1]` für interaktive Umbenennung
 - Gib Team-ID `5` ein
@@ -827,7 +1048,7 @@ python rename_team.py
 
 2. Batch-Update ausführen:
    ```bash
-   python rename_team.py
+   python cli.py rename_team
    # → [2] auswählen
    ```
 
@@ -873,7 +1094,7 @@ python fix_match_results.py
 
 **Lösung:**
 ```bash
-python main.py
+python cli.py init
 ```
 
 ---
@@ -952,16 +1173,25 @@ Wird automatisch berechnet in `result_entry.php`.
 ## 🎯 Gewinner-Ermittlung
 
 ### Gruppenphase:
-- 2 Sätze pro Match
+**Mit 2 Sätzen (sets_per_match=2):**
 - Satzstand 2:0 → klarer Sieger
 - Satzstand 1:1 → **Unentschieden** (beide Teams bekommen je 1 Satzpunkt)
 - Satzstand 0:0 (beide Sätze unentschieden) → Unentschieden
 
+**Mit 1 Satz (sets_per_match=1):**
+- Höhere Punktzahl = Sieger
+- Gleiche Punktzahl → Unentschieden
+
 ### Playoffs (Halbfinale, Finale, Platz 3):
+**Mit 2 Sätzen (sets_per_match=2):**
 - Satzstand 2:0 oder 0:2 → klarer Sieger
 - Satzstand 1:1 → **Punktdifferenz entscheidet**
   - Gesamt-Punkte über beide Sätze
   - Höhere Punktzahl = Gewinner
+
+**Mit 1 Satz (sets_per_match=1):**
+- Höhere Punktzahl = Sieger
+- Bei Gleichstand: Geringeres Team-ID gewinnt (Fallback)
 
 ### Tabellen-Sortierung:
 1. **Satzpunkte** (2 pro Satz-Sieg, 1 pro Unentschieden, 0 bei Niederlage)
@@ -982,11 +1212,19 @@ Bei Problemen:
 
 ## ✅ Checkliste für Turniertag
 
+**Vorbereitung:**
 - [ ] Backup von `data/tournament.db` erstellen
-- [ ] `index.php` auf Beamer/Monitor
+- [ ] Turnier initialisiert (`python cli.py` → Option [1])
+- [ ] Zeitplan geprüft (Option [2] falls Anpassung nötig)
+- [ ] Konfiguration validiert (Option [5])
+
+**Equipment:**
+- [ ] `index.php` auf Beamer/Monitor (für Publikum)
 - [ ] `result_entry.php` auf Eingabe-PC
 - [ ] `groups.php` und `bracket.php` bereithalten
-- [ ] Laptop mit Python und `cli.py schedule` bereit (für Zeitanpassungen)
+- [ ] Laptop mit `python cli.py` bereit (für Zeitanpassungen, Option [2])
 - [ ] Diese Anleitung ausdrucken/griffbereit
+
+**Während des Turniers:**
 
 **Viel Erfolg beim Turnier! 🏐🏆**

@@ -49,6 +49,70 @@
       border-color: #28a745;
     }
     
+    /* Mobile Optimierung für Turnierbaum */
+    @media (max-width: 768px) {
+        body.container {
+            padding-left: 5px;
+            padding-right: 5px;
+        }
+        
+        .nav-tabs {
+            font-size: 0.85rem;
+        }
+        
+        .nav-link {
+            padding: 0.4rem 0.6rem;
+        }
+        
+        .bracket-container {
+            padding: 20px 10px;
+            justify-content: flex-start;
+        }
+        
+        .bracket-round {
+            min-width: 180px;
+            margin: 0 8px;
+        }
+        
+        .bracket-round-title {
+            font-size: 0.9rem;
+            margin-bottom: 15px;
+        }
+        
+        .bracket-match {
+            margin: 15px 0;
+            font-size: 0.85rem;
+        }
+        
+        .bracket-team {
+            padding: 8px !important;
+        }
+        
+        .bracket-match-info {
+            padding: 5px !important;
+            font-size: 0.7rem !important;
+        }
+    }
+    
+    @media (max-width: 576px) {
+        .bracket-round {
+            min-width: 150px;
+            margin: 0 5px;
+        }
+        
+        .bracket-round-title {
+            font-size: 0.8rem;
+        }
+        
+        .bracket-match {
+            font-size: 0.75rem;
+        }
+        
+        .bracket-team {
+            padding: 6px !important;
+        }
+    }
+    
     .match-header {
       background: #f8f9fa;
       padding: 8px 12px;
