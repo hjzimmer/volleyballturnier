@@ -1,0 +1,6 @@
+# Ignoriere Datenbankdatei - enthält Turnierdaten
+tournament.db
+
+# Ignoriere Backup-Dateien
+*.db-backup
+*.backup

@@ -1,0 +1,15 @@
+{
+  "_info": "Beispiel-Konfiguration für 8 Teams (4 pro Gruppe)",
+  "_usage": "Kopiere diese Datei zu team_config.json und passe die Namen an",
+  
+  "teams": [
+    {"id": 1, "name": "Team Alpha", "group": "A"},
+    {"id": 2, "name": "Team Beta", "group": "A"},
+    {"id": 3, "name": "Team Gamma", "group": "A"},
+    {"id": 4, "name": "Team Delta", "group": "A"},
+    {"id": 5, "name": "Team Epsilon", "group": "B"},
+    {"id": 6, "name": "Team Zeta", "group": "B"},
+    {"id": 7, "name": "Team Eta", "group": "B"},
+    {"id": 8, "name": "Team Theta", "group": "B"}
+  ]
+}

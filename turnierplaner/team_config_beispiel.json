@@ -1,0 +1,17 @@
+{
+  "_info": "Beispiel-Konfiguration mit realistischen Teamnamen",
+  "_usage": "Passe die Namen und Gruppen an deine Teams an, dann 'python main.py' ausführen",
+  
+  "teams": [
+    {"id": 1, "name": "SV Musterhausen", "group": "A"},
+    {"id": 2, "name": "FC Beispielstadt", "group": "A"},
+    {"id": 3, "name": "TSV Turnierstadt", "group": "A"},
+    {"id": 4, "name": "VfL Sportfreunde", "group": "A"},
+    {"id": 5, "name": "SpVgg Volleyballer", "group": "A"},
+    {"id": 6, "name": "SC Germania", "group": "B"},
+    {"id": 7, "name": "MTV Spielstadt", "group": "B"},
+    {"id": 8, "name": "TuS Beachboys", "group": "B"},
+    {"id": 9, "name": "SG Netzroller", "group": "B"},
+    {"id": 10, "name": "ASV Punktejäger", "group": "B"}
+  ]
+}

@@ -1,0 +1,58 @@
+PRAGMA foreign_keys = ON;
+
+-- =====================
+-- Teams
+-- =====================
+CREATE TABLE teams (
+    id INTEGER PRIMARY KEY,
+    name TEXT NOT NULL
+);
+
+-- =====================
+-- Gruppen
+-- =====================
+CREATE TABLE groups (
+    id INTEGER PRIMARY KEY,
+    name TEXT NOT NULL
+);
+
+-- =====================
+-- Gruppenzugehörigkeit
+-- =====================
+CREATE TABLE group_teams (
+    group_id INTEGER NOT NULL,
+    team_id INTEGER NOT NULL,
+    PRIMARY KEY (group_id, team_id),
+    FOREIGN KEY (group_id) REFERENCES groups(id),
+    FOREIGN KEY (team_id) REFERENCES teams(id)
+);
+
+-- =====================
+-- Spiele
+-- =====================
+CREATE TABLE matches (
+    id INTEGER PRIMARY KEY,          -- Matchnummer (1–20 Gruppe, ab 21 Endrunde)
+    phase TEXT NOT NULL,             -- 'group' | 'final'
+    group_id INTEGER NULL,           -- nur Gruppenphase
+    round TEXT NOT NULL,             -- frei (z.B. "Viertelfinale")
+    team1_id INTEGER NOT NULL,
+    team2_id INTEGER NOT NULL,
+    referee_team_id INTEGER NOT NULL,
+    start_time DATETIME,
+    finished INTEGER DEFAULT 0,
+    FOREIGN KEY (team1_id) REFERENCES teams(id),
+    FOREIGN KEY (team2_id) REFERENCES teams(id),
+    FOREIGN KEY (referee_team_id) REFERENCES teams(id)
+);
+
+-- =====================
+-- Sätze
+-- =====================
+CREATE TABLE sets (
+    id INTEGER PRIMARY KEY,
+    match_id INTEGER NOT NULL,
+    set_number INTEGER CHECK (set_number IN (1,2)),
+    team1_points INTEGER NOT NULL,
+    team2_points INTEGER NOT NULL,
+    FOREIGN KEY (match_id) REFERENCES matches(id)
+);

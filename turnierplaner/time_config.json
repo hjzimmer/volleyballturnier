@@ -1,0 +1,12 @@
+{
+  "tournament_start": "2026-04-25T09:00",
+  "fields": 2,
+  "set_minutes": 8,
+  "pause_between_sets": 2,
+  "pause_between_matches": 6,
+  "lunch_break": {
+    "start": "2026-04-25T12:15",
+    "duration_minutes": 25
+  },
+  "result_entry_password": "turnier2026"
+}

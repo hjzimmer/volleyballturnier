@@ -1,0 +1,25 @@
+# Python
+__pycache__/
+build/
+*.pyc
+*.pyo
+*.pyd
+
+# Audio files
+*.mp3
+*.wav
+*.ogg
+*.flac
+*.m4a
+*.aac
+*.wma
+*.aiff
+*.ape
+*.mid
+*.midi
+
+# Other media files
+*.mp4
+*.avi
+*.mov
+*.wmv
