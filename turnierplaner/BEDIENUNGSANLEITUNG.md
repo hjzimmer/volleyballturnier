@@ -185,7 +185,7 @@ python cli.py schedule
 **Was es macht:**
 - Berechnet Zeiten und Feldzuordnungen **NEU**
 - Plant automatisch Mittagspause ein
-- Basiert auf `time_config.json`
+- Basiert auf `turnier_config.json`
 
 **✅ SICHER weil:**
 - Ändert **NUR** `start_time` und `field_number`
@@ -492,9 +492,12 @@ Alternative Spielplanansicht (falls eigenständig vorhanden)
 
 ---
 
-### `time_config.json`
+### `turnier_config.json`
 ```json
 {
+  "tournament_name": "Volleyball Turnier 2026",
+  "logo_path": "data/logo.png",
+  "sets_per_match": 2,
   "tournament_start": "2026-02-09T09:00:00",
   "fields": 2,
   "set_minutes": 12,
@@ -503,17 +506,22 @@ Alternative Spielplanansicht (falls eigenständig vorhanden)
   "lunch_break": {
     "start": "2026-02-09T12:00:00",
     "duration_minutes": 30
-  }
+  },
+  "result_entry_password": "turnier2026"
 }
 ```
 
 **Parameter:**
+- `tournament_name`: Name des Turniers (wird im Header angezeigt)
+- `logo_path`: Pfad zum Logo-Bild (optional, relativ zum Hauptverzeichnis)
+- `sets_per_match`: Anzahl der Sätze pro Match (1 oder 2)
 - `tournament_start`: Startzeit des Turniers
 - `fields`: Anzahl paralleler Felder (meist 2)
 - `set_minutes`: Dauer eines Satzes
-- `pause_between_sets`: Pause zwischen Satz 1 und 2
+- `pause_between_sets`: Pause zwischen den Sätzen (bei sets_per_match=1 wird diese ignoriert)
 - `pause_between_matches`: Pause nach jedem Match
 - `lunch_break`: Automatische Mittagspause
+- `result_entry_password`: Passwort für die Ergebniseingabe
 
 **Änderung anwenden:**
 ```bash
@@ -604,7 +612,7 @@ Datenbankschema mit allen Tabellen. Wird von `db.py` verwendet.
    ```
 
 2. **Konfiguration anpassen:**
-   - `time_config.json` bearbeiten (Startzeit, Felder, Zeiten)
+   - `turnier_config.json` bearbeiten (Startzeit, Felder, Zeiten)
    - `final_config.json` prüfen (bereits optimal konfiguriert)
 
 3. **Datenbank initialisieren:**
@@ -654,7 +662,7 @@ Datenbankschema mit allen Tabellen. Wird von `db.py` verwendet.
 **Szenario:** Turnier läuft später, oder Pause ändern
 
 ```bash
-# 1. time_config.json bearbeiten
+# 1. turnier_config.json bearbeiten
 # 2. Neu berechnen:
 python cli.py schedule
 # 3. Seite aktualisieren
@@ -751,7 +759,7 @@ Zeigt alle korrigierten Matches und aktualisiert `winner_id`/`loser_id`.
 - `result_entry.php` → Ergebnisse eintragen/bearbeiten/löschen
 - `index.php`, `groups.php`, `bracket.php` → Nur Anzeige
 
-#### ✅ `time_config.json` ändern + `cli.py schedule`
+#### ✅ `turnier_config.json` ändern + `cli.py schedule`
 - Zeitplan anpassen
 - Ergebnisse bleiben
 
@@ -782,7 +790,7 @@ copy tournament_backup.db tournament.db
 ### Problem: Zeiten stimmen nicht
 
 **Lösung:**
-1. `time_config.json` prüfen und anpassen
+1. `turnier_config.json` prüfen und anpassen
 2. `python cli.py schedule` ausführen
 3. Browser-Cache leeren (Strg+F5)
 
@@ -900,7 +908,7 @@ Wird automatisch berechnet in `result_entry.php`.
 ### Problem: Mittagspause falsch geplant
 
 **Anpassen:**
-1. `time_config.json`:
+1. `turnier_config.json`:
    ```json
    "lunch_break": {
      "start": "2026-02-09T12:30:00",  // Neue Zeit

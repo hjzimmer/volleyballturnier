@@ -1,10 +1,11 @@
 <?php
 session_start();
 
-// Lade Passwort aus time_config.json
-$configPath = __DIR__ . '/../time_config.json';
+// Lade Passwort aus turnier_config.json
+$configPath = __DIR__ . '/../turnier_config.json';
 $config = json_decode(file_get_contents($configPath), true);
 $requiredPassword = $config['result_entry_password'] ?? 'admin';
+$setsPerMatch = $config['sets_per_match'] ?? 2;
 
 // Logout-Funktion
 if (isset($_GET['logout'])) {
@@ -58,7 +59,7 @@ if (!isset($_SESSION['result_entry_authenticated']) || $_SESSION['result_entry_a
                     </form>
                     
                     <div class="mt-3 text-center">
-                        <small class="text-muted">Passwort in <code>time_config.json</code> konfiguriert</small>
+                        <small class="text-muted">Passwort in <code>turnier_config.json</code> konfiguriert</small>
                     </div>
                 </div>
             </div>
@@ -88,14 +89,13 @@ require 'db.php';
 </head>
 <body class="container py-4">
 
-<div class="d-flex justify-content-between align-items-center mb-4">
-    <h1>📝 Ergebniseingabe</h1>
-    <div>
-        <a href="print_match_cards.php" target="_blank" class="btn btn-sm btn-success me-2">
-            🖨️ Spielberichtsbogen drucken
-        </a>
-        <a href="result_entry.php?logout=1" class="btn btn-sm btn-outline-secondary">🔓 Abmelden</a>
-    </div>
+<?php include 'header.php'; ?>
+
+<div class="d-flex justify-content-end align-items-center mb-3">
+    <a href="print_match_cards.php" target="_blank" class="btn btn-sm btn-success me-2">
+        🖨️ Spielberichtsbogen drucken
+    </a>
+    <a href="result_entry.php?logout=1" class="btn btn-sm btn-outline-secondary">🔓 Abmelden</a>
 </div>
 
 <ul class="nav nav-tabs mb-3">
@@ -129,26 +129,27 @@ function resolveTeam($db, $teamId, $teamRef) {
 // Ergebnis speichern
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['save_result'])) {
     $matchId = $_POST['match_id'];
-    $set1Team1 = intval($_POST['set1_team1']);
-    $set1Team2 = intval($_POST['set1_team2']);
-    $set2Team1 = intval($_POST['set2_team1']);
-    $set2Team2 = intval($_POST['set2_team2']);
+    
+    // Sammle Satzergebnisse dynamisch
+    $sets = [];
+    for ($i = 1; $i <= $setsPerMatch; $i++) {
+        $sets[] = [
+            'team1' => intval($_POST['set' . $i . '_team1']),
+            'team2' => intval($_POST['set' . $i . '_team2'])
+        ];
+    }
     
     // Bestimme Gewinner
     $team1Wins = 0;
     $team2Wins = 0;
     
     // Zähle Satzgewinne (Unentschieden werden nicht gezählt)
-    if ($set1Team1 > $set1Team2) {
-        $team1Wins++;
-    } elseif ($set1Team2 > $set1Team1) {
-        $team2Wins++;
-    }
-    
-    if ($set2Team1 > $set2Team2) {
-        $team1Wins++;
-    } elseif ($set2Team2 > $set2Team1) {
-        $team2Wins++;
+    foreach ($sets as $set) {
+        if ($set['team1'] > $set['team2']) {
+            $team1Wins++;
+        } elseif ($set['team2'] > $set['team1']) {
+            $team2Wins++;
+        }
     }
     
     // Hole Team IDs, Runde und Phase
@@ -201,11 +202,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['save_result'])) {
     // Lösche alte Ergebnisse falls vorhanden
     $db->prepare("DELETE FROM sets WHERE match_id = ?")->execute([$matchId]);
     
-    // Speichere neue Ergebnisse
-    $db->prepare("INSERT INTO sets (match_id, set_number, team1_points, team2_points) VALUES (?, 1, ?, ?)")
-        ->execute([$matchId, $set1Team1, $set1Team2]);
-    $db->prepare("INSERT INTO sets (match_id, set_number, team1_points, team2_points) VALUES (?, 2, ?, ?)")
-        ->execute([$matchId, $set2Team1, $set2Team2]);
+    // Speichere neue Ergebnisse dynamisch
+    $insertStmt = $db->prepare("INSERT INTO sets (match_id, set_number, team1_points, team2_points) VALUES (?, ?, ?, ?)");
+    for ($i = 0; $i < $setsPerMatch; $i++) {
+        $insertStmt->execute([$matchId, $i + 1, $sets[$i]['team1'], $sets[$i]['team2']]);
+    }
     
     // Update Match
     $db->prepare("UPDATE matches SET finished = 1, winner_id = ?, loser_id = ? WHERE id = ?")
@@ -547,11 +548,15 @@ $allTeams = $db->query("SELECT id, name FROM teams ORDER BY name")->fetchAll();
                             <!-- Modal für Ergebniseingabe -->
                             <?php if ($canEnterResult): 
                                 // Hole vorhandene Ergebnisse
-                                $sets = $db->prepare("SELECT set_number, team1_points, team2_points FROM sets WHERE match_id = ? ORDER BY set_number");
-                                $sets->execute([$m['id']]);
-                                $setResults = $sets->fetchAll(PDO::FETCH_ASSOC);
-                                $set1 = $setResults[0] ?? ['team1_points' => '', 'team2_points' => ''];
-                                $set2 = $setResults[1] ?? ['team1_points' => '', 'team2_points' => ''];
+                                $setsQuery = $db->prepare("SELECT set_number, team1_points, team2_points FROM sets WHERE match_id = ? ORDER BY set_number");
+                                $setsQuery->execute([$m['id']]);
+                                $setResults = $setsQuery->fetchAll(PDO::FETCH_ASSOC);
+                                
+                                // Erstelle Array mit allen Sätzen (mit Defaults)
+                                $existingSets = [];
+                                for ($i = 0; $i < $setsPerMatch; $i++) {
+                                    $existingSets[$i] = $setResults[$i] ?? ['team1_points' => '', 'team2_points' => ''];
+                                }
                             ?>
                             <div class="modal fade" id="resultModal<?= $m['id'] ?>" tabindex="-1">
                                 <div class="modal-dialog">
@@ -568,39 +573,26 @@ $allTeams = $db->query("SELECT id, name FROM teams ORDER BY name")->fetchAll();
                                                     <h6><?= htmlspecialchars($team1) ?> - <?= htmlspecialchars($team2) ?></h6>
                                                 </div>
                                                 
+                                                <?php for ($setNum = 1; $setNum <= $setsPerMatch; $setNum++): 
+                                                    $setData = $existingSets[$setNum - 1];
+                                                ?>
                                                 <div class="mb-3">
-                                                    <label class="form-label"><strong>Satz 1</strong></label>
+                                                    <label class="form-label"><strong>Satz <?= $setNum ?></strong></label>
                                                     <div class="row">
                                                         <div class="col">
-                                                            <input type="number" name="set1_team1" class="form-control" 
+                                                            <input type="number" name="set<?= $setNum ?>_team1" class="form-control" 
                                                                    placeholder="<?= htmlspecialchars($team1) ?>" 
-                                                                   value="<?= $set1['team1_points'] ?>" required min="0" max="30">
+                                                                   value="<?= $setData['team1_points'] ?>" required min="0" max="30">
                                                         </div>
                                                         <div class="col-auto d-flex align-items-center">:</div>
                                                         <div class="col">
-                                                            <input type="number" name="set1_team2" class="form-control" 
+                                                            <input type="number" name="set<?= $setNum ?>_team2" class="form-control" 
                                                                    placeholder="<?= htmlspecialchars($team2) ?>" 
-                                                                   value="<?= $set1['team2_points'] ?>" required min="0" max="30">
+                                                                   value="<?= $setData['team2_points'] ?>" required min="0" max="30">
                                                         </div>
                                                     </div>
                                                 </div>
-                                                
-                                                <div class="mb-3">
-                                                    <label class="form-label"><strong>Satz 2</strong></label>
-                                                    <div class="row">
-                                                        <div class="col">
-                                                            <input type="number" name="set2_team1" class="form-control" 
-                                                                   placeholder="<?= htmlspecialchars($team1) ?>" 
-                                                                   value="<?= $set2['team1_points'] ?>" required min="0" max="30">
-                                                        </div>
-                                                        <div class="col-auto d-flex align-items-center">:</div>
-                                                        <div class="col">
-                                                            <input type="number" name="set2_team2" class="form-control" 
-                                                                   placeholder="<?= htmlspecialchars($team2) ?>" 
-                                                                   value="<?= $set2['team2_points'] ?>" required min="0" max="30">
-                                                        </div>
-                                                    </div>
-                                                </div>
+                                                <?php endfor; ?>
                                                 
                                                 <div class="alert alert-info">
                                                     <small>Der Gewinner wird automatisch ermittelt. Bei Bedarf werden nachfolgende Finalrunden-Matches aktualisiert.</small>

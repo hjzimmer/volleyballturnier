@@ -20,16 +20,16 @@ def validate_team_config(config_path='team_config.json'):
         with open(config_path, 'r', encoding='utf-8') as f:
             config = json.load(f)
     except FileNotFoundError:
-        print(f"❌ FEHLER: {config_path} nicht gefunden!")
+        print(f"[FEHLER] {config_path} nicht gefunden!")
         print(f"   Erstelle die Datei oder nutze team_config_beispiel.json als Vorlage.")
         return False
     except json.JSONDecodeError as e:
-        print(f"❌ FEHLER: Ungültiges JSON in {config_path}")
+        print(f"[FEHLER] Ungültiges JSON in {config_path}")
         print(f"   {e}")
         return False
     
     if 'teams' not in config:
-        print(f"❌ FEHLER: 'teams' Feld fehlt in der Config!")
+        print(f"[FEHLER] 'teams' Feld fehlt in der Config!")
         return False
     
     teams = config['teams']
@@ -38,7 +38,7 @@ def validate_team_config(config_path='team_config.json'):
     
     # 1. Prüfe Anzahl Teams
     total_teams = len(teams)
-    print(f"📊 Gesamt-Teams: {total_teams}")
+    print(f"[INFO] Gesamt-Teams: {total_teams}")
     
     if total_teams == 0:
         errors.append("Keine Teams definiert!")
@@ -47,47 +47,47 @@ def validate_team_config(config_path='team_config.json'):
     elif total_teams % 2 != 0:
         errors.append(f"Ungerade Anzahl Teams ({total_teams}). Es muss eine gerade Anzahl sein!")
     else:
-        print(f"   ✓ Gerade Anzahl Teams")
+        print(f"   [OK] Gerade Anzahl Teams")
     
     # 2. Prüfe Gruppen
     group_a = [t for t in teams if t.get('group') == 'A']
     group_b = [t for t in teams if t.get('group') == 'B']
     other_groups = [t for t in teams if t.get('group') not in ['A', 'B']]
     
-    print(f"\n📋 Gruppenzuordnung:")
+    print(f"\n[INFO] Gruppenzuordnung:")
     print(f"   Gruppe A: {len(group_a)} Teams")
     print(f"   Gruppe B: {len(group_b)} Teams")
     
     if other_groups:
         errors.append(f"{len(other_groups)} Teams haben ungültige Gruppe (nur 'A' oder 'B' erlaubt)")
         for t in other_groups[:3]:  # Zeige max 3 Beispiele
-            print(f"      ❌ Team {t.get('id')}: Gruppe '{t.get('group')}'")
+            print(f"      [FEHLER] Team {t.get('id')}: Gruppe '{t.get('group')}'")
     
     if len(group_a) != len(group_b):
         errors.append(f"Gruppen haben unterschiedliche Größen (A: {len(group_a)}, B: {len(group_b)})")
-        errors.append(f"   → Beide Gruppen müssen gleich viele Teams haben!")
+        errors.append(f"   -> Beide Gruppen müssen gleich viele Teams haben!")
     else:
-        print(f"   ✓ Gruppen sind ausgeglichen")
+        print(f"   [OK] Gruppen sind ausgeglichen")
     
     # 3. Prüfe IDs
     ids = [t.get('id') for t in teams]
     id_counts = Counter(ids)
     duplicates = [id for id, count in id_counts.items() if count > 1]
     
-    print(f"\n🔢 Team-IDs:")
+    print(f"\n[INFO] Team-IDs:")
     if duplicates:
         errors.append(f"Doppelte IDs gefunden: {duplicates}")
     elif None in ids:
         errors.append("Einige Teams haben keine ID!")
     else:
-        print(f"   ✓ Alle IDs eindeutig ({min(ids)} bis {max(ids)})")
+        print(f"   [OK] Alle IDs eindeutig ({min(ids)} bis {max(ids)})")
     
     # 4. Prüfe Namen
     names = [t.get('name', '') for t in teams]
     name_counts = Counter(names)
     duplicate_names = [name for name, count in name_counts.items() if count > 1 and name]
     
-    print(f"\n🏷️  Team-Namen:")
+    print(f"\n[INFO] Team-Namen:")
     if duplicate_names:
         warnings.append(f"Doppelte Namen gefunden: {duplicate_names}")
         warnings.append("   (Erlaubt, aber nicht empfohlen)")
@@ -97,7 +97,7 @@ def validate_team_config(config_path='team_config.json'):
         warnings.append(f"{len(empty_names)} Teams haben leere Namen")
     
     if not warnings and not duplicate_names and not empty_names:
-        print(f"   ✓ Alle Namen gesetzt")
+        print(f"   [OK] Alle Namen gesetzt")
     
     # 5. Berechne Statistiken
     teams_per_group = len(group_a)
@@ -105,41 +105,41 @@ def validate_team_config(config_path='team_config.json'):
         matches_per_group = teams_per_group * (teams_per_group - 1) // 2
         total_group_matches = matches_per_group * 2
         
-        print(f"\n📈 Turnier-Statistiken:")
-        print(f"   • Teams pro Gruppe: {teams_per_group}")
-        print(f"   • Matches pro Gruppe: {matches_per_group}")
-        print(f"   • Gesamt Gruppenmatches: {total_group_matches}")
-        print(f"   • Final-Matches beginnen bei ID: {total_group_matches + 1}")
+        print(f"\n[INFO] Turnier-Statistiken:")
+        print(f"   - Teams pro Gruppe: {teams_per_group}")
+        print(f"   - Matches pro Gruppe: {matches_per_group}")
+        print(f"   - Gesamt Gruppenmatches: {total_group_matches}")
+        print(f"   - Final-Matches beginnen bei ID: {total_group_matches + 1}")
         
         # Zeitberechnung (grob)
         # Annahme: 15 Min pro Match, 2 Felder parallel
         estimated_minutes = (total_group_matches / 2) * 15
         hours = int(estimated_minutes // 60)
         minutes = int(estimated_minutes % 60)
-        print(f"   • Geschätzte Gruppenphase-Dauer: ~{hours}h {minutes}min (bei 2 Feldern)")
+        print(f"   - Geschätzte Gruppenphase-Dauer: ~{hours}h {minutes}min (bei 2 Feldern)")
     
     # 6. Ausgabe Zusammenfassung
     print()
     print("=" * 70)
     
     if errors:
-        print("❌ VALIDIERUNG FEHLGESCHLAGEN")
+        print("[FEHLER] VALIDIERUNG FEHLGESCHLAGEN")
         print()
-        print("🔴 FEHLER:")
+        print("FEHLER:")
         for i, error in enumerate(errors, 1):
             print(f"   {i}. {error}")
         print()
-        print("   → Korrigiere diese Fehler in team_config.json vor dem Start!")
+        print("   -> Korrigiere diese Fehler in team_config.json vor dem Start!")
     elif warnings:
-        print("⚠️  VALIDIERUNG MIT WARNUNGEN")
+        print("[WARNUNG] VALIDIERUNG MIT WARNUNGEN")
         print()
-        print("🟡 WARNUNGEN:")
+        print("WARNUNGEN:")
         for i, warning in enumerate(warnings, 1):
             print(f"   {i}. {warning}")
         print()
-        print("   → Das Turnier kann gestartet werden, aber überprüfe die Warnungen.")
+        print("   -> Das Turnier kann gestartet werden, aber überprüfe die Warnungen.")
     else:
-        print("✅ VALIDIERUNG ERFOLGREICH")
+        print("[OK] VALIDIERUNG ERFOLGREICH")
         print()
         print("   Alle Checks bestanden! Bereit für:")
         print("   python main.py")

@@ -33,7 +33,7 @@ def fix_match_results():
         sets = cursor.fetchall()
         
         if not sets:
-            print(f"⚠️  Match {match_id}: Keine Sätze gefunden")
+            print(f"[WARNUNG] Match {match_id}: Keine Sätze gefunden")
             continue
         
         # Zähle Satzgewinne
@@ -94,7 +94,7 @@ def fix_match_results():
             if team1_wins == team2_wins and is_playoff:
                 status_info += f" (Gesamt: {total_team1}:{total_team2}, Diff: {total_team1 - total_team2:+d})"
             
-            print(f"🔧 Match {match_id}: {team1_name} - {team2_name} [{round_name}]")
+            print(f"[FIX] Match {match_id}: {team1_name} - {team2_name} [{round_name}]")
             print(f"   Sätze: {set_results} ({status_info})")
             
             if current_winner:
@@ -124,7 +124,7 @@ def fix_match_results():
     conn.commit()
     conn.close()
     
-    print(f"\n✅ {fixed_count} Matches korrigiert!")
+    print(f"\n[OK] {fixed_count} Matches korrigiert!")
     if fixed_count == 0:
         print("   Alle Matches waren bereits korrekt.")
 

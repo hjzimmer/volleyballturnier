@@ -83,7 +83,7 @@ def rename_team(conn, team_id, new_name):
     # Stats anzeigen
     stats = get_team_stats(conn, team_id)
     
-    print(f"\n📋 TEAM-INFORMATION:")
+    print(f"\n[INFO] TEAM-INFORMATION:")
     print(f"   ID: {team_id}")
     print(f"   Alter Name: {old_name}")
     print(f"   Neuer Name: {new_name}")
@@ -92,20 +92,20 @@ def rename_team(conn, team_id, new_name):
     print(f"   Siege: {stats['wins']}")
     
     # Bestätigung
-    print(f"\n⚠️  UMBENENNUNG:")
-    print(f"   '{old_name}' → '{new_name}'")
+    print(f"\n[WARNUNG] UMBENENNUNG:")
+    print(f"   '{old_name}' -> '{new_name}'")
     confirmation = input(f"\n   Fortfahren? (ja/nein): ").strip().lower()
     
     if confirmation not in ['ja', 'j', 'yes', 'y']:
-        print("❌ Abgebrochen.")
+        print("[ABBRUCH] Abgebrochen.")
         return False
     
     # Update durchführen
     cursor.execute("UPDATE teams SET name = ? WHERE id = ?", (new_name, team_id))
     conn.commit()
     
-    print(f"\n✅ Team erfolgreich umbenannt!")
-    print(f"   '{old_name}' → '{new_name}'")
+    print(f"\n[OK] Team erfolgreich umbenannt!")
+    print(f"   '{old_name}' -> '{new_name}'")
     
     return True
 
@@ -193,14 +193,14 @@ def batch_rename_from_config():
             old_name = result[0]
             if old_name != new_name:
                 cursor.execute("UPDATE teams SET name = ? WHERE id = ?", (new_name, team_id))
-                print(f"✓ Team {team_id}: '{old_name}' → '{new_name}'")
+                print(f"[OK] Team {team_id}: '{old_name}' -> '{new_name}'")
                 updated += 1
     
     if updated > 0:
         conn.commit()
-        print(f"\n✅ {updated} Teams aktualisiert!")
+        print(f"\n[OK] {updated} Teams aktualisiert!")
     else:
-        print("\n✓ Alle Teams sind bereits aktuell.")
+        print("\n[OK] Alle Teams sind bereits aktuell.")
     
     conn.close()
 

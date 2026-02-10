@@ -75,8 +75,18 @@ FROM matches m
 ORDER BY m.id
 ");
 ?>
+<!doctype html>
+<html lang="de">
+<head>
+  <meta charset="utf-8">
+  <title>Turnierplan</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+</head>
+<body class="container py-4">
 
-<h1>Turnierplan</h1>
+<?php include 'header.php'; ?>
+
 <table border='1'>
 <tr><th>Zeit</th><th>Feld</th><th>Match</th><th>Runde</th><th>Team 1</th><th>Team 2</th><th>Ergebnis</th></tr>
 <?php foreach ($stmt as $row): 

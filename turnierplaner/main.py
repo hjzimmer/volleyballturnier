@@ -27,6 +27,6 @@ if __name__ == "__main__":
     create_final_matches("final_config.json", group_tables)
     
     # Zeitplan für alle Matches erstellen
-    schedule_all_matches("time_config.json")
+    schedule_all_matches("turnier_config.json")
     
     print("Gruppenphase & Endrunde initialisiert.")

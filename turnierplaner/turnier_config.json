@@ -1,8 +1,11 @@
 {
+  "tournament_name": "3. Otti Fun Cup - 2026",
+  "logo_path": "data/vsvlogo.jpg",
   "tournament_start": "2026-04-25T09:00",
   "fields": 2,
-  "set_minutes": 8,
-  "pause_between_sets": 2,
+  "sets_per_match": 2,
+  "set_minutes": 9,
+  "pause_between_sets": 1,
   "pause_between_matches": 6,
   "lunch_break": {
     "start": "2026-04-25T12:15",

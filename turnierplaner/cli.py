@@ -24,7 +24,7 @@ elif args.action == "rename_team":
     sys.exit(result.returncode)
 
 elif args.action == "schedule":
-    schedule_all_matches("time_config.json")
+    schedule_all_matches("turnier_config.json")
     print("Zeitplan erstellt")
 
 elif args.action == "assign_refs":

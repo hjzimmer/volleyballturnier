@@ -8,7 +8,7 @@
 </head>
 <body class="container py-4">
 
-<h1 class="mb-4">🏐 Turnier – Spielplan</h1>
+<?php include 'header.php'; ?>
 
 <ul class="nav nav-tabs mb-3">
   <li class="nav-item"><a class="nav-link active" href="index.php">Spielplan</a></li>

@@ -16,13 +16,15 @@ def schedule_all_matches(config_path):
 
     start_time = datetime.fromisoformat(cfg["tournament_start"])
     fields = cfg["fields"]
+    sets_per_match = cfg.get("sets_per_match", 2)
 
     set_time = timedelta(minutes=cfg["set_minutes"])
     set_pause = timedelta(minutes=cfg["pause_between_sets"])
     match_pause = timedelta(minutes=cfg["pause_between_matches"])
 
-    # Dauer eines Matches: 2 Sätze + Pause zwischen Sätzen + Pause nach Match
-    match_duration = set_time * 2 + set_pause + match_pause
+    # Dauer eines Matches: N Sätze + Pausen zwischen Sätzen + Pause nach Match
+    # Pause zwischen Sätzen: (sets_per_match - 1) * set_pause
+    match_duration = set_time * sets_per_match + set_pause * (sets_per_match - 1) + match_pause
 
     lunch_preferred_start = datetime.fromisoformat(cfg["lunch_break"]["start"])
     lunch_duration = timedelta(minutes=cfg["lunch_break"]["duration_minutes"])

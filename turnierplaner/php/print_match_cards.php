@@ -4,7 +4,7 @@ session_start();
 // Prüfe Authentifizierung
 require 'db.php';
 
-$configPath = __DIR__ . '/../time_config.json';
+$configPath = __DIR__ . '/../turnier_config.json';
 $config = json_decode(file_get_contents($configPath), true);
 $requiredPassword = $config['result_entry_password'] ?? 'admin';
 

@@ -145,7 +145,7 @@ def create_final_matches(config_path, group_tables=None):
     conn.commit()
     conn.close()
     
-    print(f"✅ Final-Matches erstellt (IDs: {next_id} bis {next_id + len(config['matches']) - 1})")
+    print(f"[OK] Final-Matches erstellt (IDs: {next_id} bis {next_id + len(config['matches']) - 1})")
     return match_key_to_id
 
 

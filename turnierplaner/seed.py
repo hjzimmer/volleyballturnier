@@ -16,14 +16,14 @@ def seed_teams():
                 config = json.load(f)
             
             teams = [(team['id'], team['name']) for team in config['teams']]
-            print(f"✓ Lade {len(teams)} Teams aus team_config.json")
+            print(f"[OK] Lade {len(teams)} Teams aus team_config.json")
         except Exception as e:
-            print(f"⚠️  Fehler beim Laden von team_config.json: {e}")
-            print(f"✓ Verwende Standard-Teams")
+            print(f"[WARNUNG] Fehler beim Laden von team_config.json: {e}")
+            print(f"[OK] Verwende Standard-Teams")
             teams = [(i, f"Team {i}") for i in range(1, 11)]
     else:
-        print(f"⚠️  team_config.json nicht gefunden")
-        print(f"✓ Verwende Standard-Teams")
+        print(f"[WARNUNG] team_config.json nicht gefunden")
+        print(f"[OK] Verwende Standard-Teams")
         teams = [(i, f"Team {i}") for i in range(1, 11)]
     
     conn.execute("DELETE FROM teams")
@@ -52,10 +52,10 @@ def seed_groups():
             group_a = [team['id'] for team in config['teams'] if team['group'] == 'A']
             group_b = [team['id'] for team in config['teams'] if team['group'] == 'B']
             
-            print(f"✓ Gruppe A: {len(group_a)} Teams, Gruppe B: {len(group_b)} Teams")
+            print(f"[OK] Gruppe A: {len(group_a)} Teams, Gruppe B: {len(group_b)} Teams")
         except Exception as e:
-            print(f"⚠️  Fehler beim Laden der Gruppen: {e}")
-            print(f"✓ Verwende Standard-Gruppen (1-5: A, 6-10: B)")
+            print(f"[WARNUNG] Fehler beim Laden der Gruppen: {e}")
+            print(f"[OK] Verwende Standard-Gruppen (1-5: A, 6-10: B)")
             group_a = [1,2,3,4,5]
             group_b = [6,7,8,9,10]
     else:

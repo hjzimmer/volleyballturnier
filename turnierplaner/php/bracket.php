@@ -193,7 +193,7 @@
 <body class="container-fluid py-4" style="background: #f5f7fa;">
 
 <div class="container">
-  <h1>🏆 Turnierbaum Endrunde</h1>
+  <?php include 'header.php'; ?>
 
   <ul class="nav nav-tabs mb-4">
     <li class="nav-item"><a class="nav-link" href="index.php">Spielplan</a></li>
