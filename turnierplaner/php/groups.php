@@ -201,14 +201,24 @@ function calculateGroupStandings($db, $groupId) {
         $standings[$id]['point_diff'] = $data['points_scored'] - $data['points_conceded'];
     }
     
-    // Sortieren: 1. Satzpunkte, 2. Direkter Vergleich, 3. Punktdifferenz
+    // Sortieren: 1. Satzpunkte, 2. Punktdifferenz, 3. Erzielte Punkte
     usort($standings, function($a, $b) {
         // 1. Nach Satzpunkten
         if ($a['points'] != $b['points']) {
             return $b['points'] - $a['points'];
         }
         
-        // 2. Direkter Vergleich (wenn vorhanden)
+        // 2. Nach Punktdifferenz
+        if ($a['point_diff'] != $b['point_diff']) {
+            return $b['point_diff'] - $a['point_diff'];
+        }
+        
+        // 3. Nach erzielten Punkten (mehr erzielte Punkte = besser)
+        if ($a['points_scored'] != $b['points_scored']) {
+            return $b['points_scored'] - $a['points_scored'];
+        }
+        
+        // 4. Direkter Vergleich (nur wenn sie gegeneinander gespielt haben)
         if (isset($a['matches'][$b['id']]) && isset($b['matches'][$a['id']])) {
             $directA = $a['matches'][$b['id']]['points'];
             $directB = $b['matches'][$a['id']]['points'];
@@ -224,9 +234,9 @@ function calculateGroupStandings($db, $groupId) {
             }
         }
         
-        // 3. Nach Punktdifferenz
-        if ($a['point_diff'] != $b['point_diff']) {
-            return $b['point_diff'] - $a['point_diff'];
+        // 5. Nach gewonnenen Sätzen
+        if ($a['sets_won'] != $b['sets_won']) {
+            return $b['sets_won'] - $a['sets_won'];
         }
         
         return 0;

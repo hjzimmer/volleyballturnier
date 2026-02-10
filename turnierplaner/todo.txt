@@ -1,0 +1,3 @@
+Todo:
+=====
+Widget basierte Seite, welche über einzelne widgets iteriert

@@ -1195,8 +1195,12 @@ Wird automatisch berechnet in `result_entry.php`.
 
 ### Tabellen-Sortierung:
 1. **Satzpunkte** (2 pro Satz-Sieg, 1 pro Unentschieden, 0 bei Niederlage)
-2. **Direkter Vergleich** (bei Gleichstand)
-3. **Punktdifferenz** (Punkte geschossen - Punkte kassiert)
+2. **Punktdifferenz** (Punkte geschossen - Punkte kassiert)
+3. **Erzielte Punkte** (Mehr erzielte Punkte = besser bei gleicher Differenz)
+4. **Direkter Vergleich** (nur wenn 2 Teams gegeneinander gespielt haben)
+5. **Gewonnene Sätze** (Zusätzliches Kriterium)
+
+**Hinweis:** Der direkte Vergleich wird erst nach Punktdifferenz geprüft, da er nur bei genau 2 Teams sinnvoll ist, die direkt gegeneinander gespielt haben.
 
 ---
 

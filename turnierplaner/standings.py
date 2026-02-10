@@ -58,17 +58,44 @@ def calculate_group_standings(group_id: int):
 
 
 def sort_group_table(table: dict):
+    """
+    Sortiert die Gruppentabelle nach:
+    1. Satzpunkte (points)
+    2. Punktdifferenz (point_diff)
+    3. Direkter Vergleich (nur relevant wenn genau 2 Teams punktgleich sind)
+    """
     items = list(table.items())
-    items.sort(key=lambda x: (x[1]["points"], x[1]["point_diff"]), reverse=True)
-
-    i = 0
-    while i < len(items) - 1:
-        t1, d1 = items[i]
-        t2, d2 = items[i + 1]
-        if d1["points"] == d2["points"]:
-            direct = d1["matches"].get(t2)
-            if direct and direct["points"] < d2["matches"][t1]["points"]:
-                items[i], items[i + 1] = items[i + 1], items[i]
-        i += 1
-
+    
+    def compare_teams(item1, item2):
+        t1_id, t1_data = item1
+        t2_id, t2_data = item2
+        
+        # 1. Nach Satzpunkten (höher ist besser)
+        if t1_data["points"] != t2_data["points"]:
+            return t2_data["points"] - t1_data["points"]
+        
+        # 2. Nach Punktdifferenz (höher ist besser)
+        if t1_data["point_diff"] != t2_data["point_diff"]:
+            return t2_data["point_diff"] - t1_data["point_diff"]
+        
+        # 3. Direkter Vergleich (nur wenn sie gegeneinander gespielt haben)
+        if t2_id in t1_data["matches"] and t1_id in t2_data["matches"]:
+            direct_t1 = t1_data["matches"][t2_id]["points"]
+            direct_t2 = t2_data["matches"][t1_id]["points"]
+            
+            if direct_t1 != direct_t2:
+                return direct_t2 - direct_t1
+            
+            # Bei gleichem Punktestand: Punktdifferenz im direkten Vergleich
+            direct_diff_t1 = t1_data["matches"][t2_id]["point_diff"]
+            direct_diff_t2 = t2_data["matches"][t1_id]["point_diff"]
+            
+            if direct_diff_t1 != direct_diff_t2:
+                return direct_diff_t2 - direct_diff_t1
+        
+        return 0
+    
+    from functools import cmp_to_key
+    items.sort(key=cmp_to_key(compare_teams))
+    
     return [tid for tid, _ in items]

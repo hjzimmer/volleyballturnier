@@ -309,6 +309,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['save_result'])) {
     // Aktualisiere nachfolgende Finalrunden-Matches
     updateFinalMatches($db, $matchId);
     
+    // Wenn es ein Gruppenspiel war, aktualisiere alle Finalspiele mit Gruppenreferenzen
+    if ($matchData['phase'] === 'group') {
+        updateGroupPositionsInFinals($db);
+    }
+    
     // Weise Schiedsrichter für neu aufgelöste Finalrunden-Matches zu
     assignRefereesForFinalMatches($db);
     
@@ -321,9 +326,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['save_result'])) {
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['delete_result'])) {
     $matchId = $_POST['match_id'];
     
+    // Hole Phase des Matches
+    $match = $db->query("SELECT phase FROM matches WHERE id = $matchId")->fetch();
+    $isGroupMatch = ($match && $match['phase'] === 'group');
+    
     $db->prepare("DELETE FROM sets WHERE match_id = ?")->execute([$matchId]);
     $db->prepare("UPDATE matches SET finished = 0, winner_id = NULL, loser_id = NULL WHERE id = ?")
         ->execute([$matchId]);
+    
+    // Wenn es ein Gruppenspiel war, aktualisiere alle Finalspiele mit Gruppenreferenzen
+    if ($isGroupMatch) {
+        updateGroupPositionsInFinals($db);
+    }
     
     $successMsg = "Ergebnis erfolgreich gelöscht!";
 }
@@ -363,6 +377,63 @@ function updateFinalMatches($db, $completedMatchId) {
         if ($updated) {
             $db->prepare("UPDATE matches SET team1_id = ?, team2_id = ? WHERE id = ?")
                 ->execute([$newTeam1Id, $newTeam2Id, $match['id']]);
+        }
+    }
+}
+
+// Funktion zum Aktualisieren aller Finalspiele mit Gruppenreferenzen
+function updateGroupPositionsInFinals($db) {
+    // Prüfe ob ALLE Gruppenspiele abgeschlossen sind
+    $groupMatchCount = $db->query("SELECT COUNT(*) as cnt FROM matches WHERE phase = 'group'")->fetch()['cnt'];
+    $finishedGroupMatchCount = $db->query("SELECT COUNT(*) as cnt FROM matches WHERE phase = 'group' AND finished = 1")->fetch()['cnt'];
+    
+    $allGroupMatchesFinished = ($groupMatchCount > 0 && $groupMatchCount === $finishedGroupMatchCount);
+    
+    // Finde alle Finalspiele mit Gruppenreferenzen (A_1, A_2, B_1, B_2)
+    $stmt = $db->query("SELECT id, team1_ref, team2_ref FROM matches WHERE phase = 'final'");
+    
+    foreach ($stmt as $match) {
+        $hasGroupRef1 = $match['team1_ref'] && strpos($match['team1_ref'], '_') !== false && in_array($match['team1_ref'][0], ['A', 'B']);
+        $hasGroupRef2 = $match['team2_ref'] && strpos($match['team2_ref'], '_') !== false && in_array($match['team2_ref'][0], ['A', 'B']);
+        
+        // Wenn dieses Match Gruppenreferenzen hat
+        if ($hasGroupRef1 || $hasGroupRef2) {
+            // Wenn NICHT alle Gruppenspiele fertig sind, setze die Teams auf NULL zurück
+            if (!$allGroupMatchesFinished) {
+                $db->prepare("UPDATE matches SET team1_id = NULL, team2_id = NULL WHERE id = ?")
+                    ->execute([$match['id']]);
+            } else {
+                // Alle Gruppenspiele sind fertig - berechne die Platzierungen
+                $newTeam1Id = null;
+                $newTeam2Id = null;
+                
+                // Prüfe team1_ref auf Gruppenreferenz
+                if ($hasGroupRef1) {
+                    list($groupName, $position) = explode('_', $match['team1_ref']);
+                    $groupId = $groupName === 'A' ? 1 : 2;
+                    $newTeam1Id = getGroupStandingTeam($db, $groupId, intval($position));
+                }
+                
+                // Prüfe team2_ref auf Gruppenreferenz
+                if ($hasGroupRef2) {
+                    list($groupName, $position) = explode('_', $match['team2_ref']);
+                    $groupId = $groupName === 'A' ? 1 : 2;
+                    $newTeam2Id = getGroupStandingTeam($db, $groupId, intval($position));
+                }
+                
+                // Hole aktuelle Werte falls nur eine Seite aktualisiert wird
+                if ($newTeam1Id === null) {
+                    $current = $db->query("SELECT team1_id FROM matches WHERE id = {$match['id']}")->fetch();
+                    $newTeam1Id = $current['team1_id'];
+                }
+                if ($newTeam2Id === null) {
+                    $current = $db->query("SELECT team2_id FROM matches WHERE id = {$match['id']}")->fetch();
+                    $newTeam2Id = $current['team2_id'];
+                }
+                
+                $db->prepare("UPDATE matches SET team1_id = ?, team2_id = ? WHERE id = ?")
+                    ->execute([$newTeam1Id, $newTeam2Id, $match['id']]);
+            }
         }
     }
 }
@@ -413,77 +484,86 @@ function getGroupStandingTeam($db, $groupId, $position) {
     $standings = [];
     
     foreach ($teamIds as $teamId) {
-        $wins = 0;
-        $losses = 0;
-        $setsWon = 0;
-        $setsLost = 0;
-        $pointsWon = 0;
-        $pointsLost = 0;
-        
-        // Hole alle Matches des Teams in der Gruppe
-        $matchesStmt = $db->prepare("
-            SELECT m.id, m.team1_id, m.team2_id, m.winner_id, m.finished,
-                   s.set_number, s.team1_points, s.team2_points
-            FROM matches m
-            LEFT JOIN sets s ON s.match_id = m.id
-            WHERE m.group_id = ? AND m.phase = 'group' 
-              AND (m.team1_id = ? OR m.team2_id = ?)
-              AND m.finished = 1
-            ORDER BY m.id, s.set_number
-        ");
-        $matchesStmt->execute([$groupId, $teamId, $teamId]);
-        $matches = $matchesStmt->fetchAll();
-        
-        $currentMatchId = null;
-        foreach ($matches as $row) {
-            if ($currentMatchId !== $row['id']) {
-                $currentMatchId = $row['id'];
-                if ($row['winner_id'] == $teamId) {
-                    $wins++;
-                } else {
-                    $losses++;
-                }
-            }
-            
-            if ($row['set_number']) {
-                $isTeam1 = $row['team1_id'] == $teamId;
-                $myPoints = $isTeam1 ? $row['team1_points'] : $row['team2_points'];
-                $opponentPoints = $isTeam1 ? $row['team2_points'] : $row['team1_points'];
-                
-                if ($myPoints > $opponentPoints) {
-                    $setsWon++;
-                } else {
-                    $setsLost++;
-                }
-                
-                $pointsWon += $myPoints;
-                $pointsLost += $opponentPoints;
-            }
-        }
-        
-        $standings[] = [
+        $standings[$teamId] = [
             'team_id' => $teamId,
-            'wins' => $wins,
-            'losses' => $losses,
-            'sets_won' => $setsWon,
-            'sets_lost' => $setsLost,
-            'set_diff' => $setsWon - $setsLost,
-            'points_won' => $pointsWon,
-            'points_lost' => $pointsLost,
-            'point_diff' => $pointsWon - $pointsLost
+            'points' => 0,              // Satzpunkte
+            'sets_won' => 0,
+            'sets_lost' => 0,
+            'points_scored' => 0,
+            'points_conceded' => 0,
+            'point_diff' => 0,
+            'matches' => []
         ];
     }
     
-    // Sortiere nach: 1. Siege, 2. Satzdifferenz, 3. Punktdifferenz
-    usort($standings, function($a, $b) {
-        if ($a['wins'] != $b['wins']) return $b['wins'] - $a['wins'];
-        if ($a['set_diff'] != $b['set_diff']) return $b['set_diff'] - $a['set_diff'];
-        return $b['point_diff'] - $a['point_diff'];
+    // Hole alle Sätze der beendeten Gruppenspiele
+    $setsStmt = $db->prepare("
+        SELECT m.id as match_id, m.team1_id, m.team2_id,
+               s.set_number, s.team1_points, s.team2_points
+        FROM matches m
+        JOIN sets s ON s.match_id = m.id
+        WHERE m.group_id = ? AND m.phase = 'group' AND m.finished = 1
+        ORDER BY m.id, s.set_number
+    ");
+    $setsStmt->execute([$groupId]);
+    $sets = $setsStmt->fetchAll();
+    
+    foreach ($sets as $set) {
+        $t1 = $set['team1_id'];
+        $t2 = $set['team2_id'];
+        $p1 = $set['team1_points'];
+        $p2 = $set['team2_points'];
+        
+        $standings[$t1]['points_scored'] += $p1;
+        $standings[$t1]['points_conceded'] += $p2;
+        $standings[$t2]['points_scored'] += $p2;
+        $standings[$t2]['points_conceded'] += $p1;
+        
+        // Satzpunkte vergeben
+        if ($p1 > $p2) {
+            $standings[$t1]['points'] += 2;
+            $standings[$t1]['sets_won']++;
+            $standings[$t2]['sets_lost']++;
+        } elseif ($p2 > $p1) {
+            $standings[$t2]['points'] += 2;
+            $standings[$t2]['sets_won']++;
+            $standings[$t1]['sets_lost']++;
+        } else {
+            $standings[$t1]['points'] += 1;
+            $standings[$t2]['points'] += 1;
+        }
+    }
+    
+    // Punktdifferenz berechnen
+    foreach ($standings as $teamId => $data) {
+        $standings[$teamId]['point_diff'] = $data['points_scored'] - $data['points_conceded'];
+    }
+    
+    // Sortiere nach: 1. Satzpunkte, 2. Punktdifferenz, 3. Erzielte Punkte
+    $standingsArray = array_values($standings);
+    usort($standingsArray, function($a, $b) {
+        // 1. Nach Satzpunkten
+        if ($a['points'] != $b['points']) {
+            return $b['points'] - $a['points'];
+        }
+        // 2. Nach Punktdifferenz
+        if ($a['point_diff'] != $b['point_diff']) {
+            return $b['point_diff'] - $a['point_diff'];
+        }
+        // 3. Nach erzielten Punkten
+        if ($a['points_scored'] != $b['points_scored']) {
+            return $b['points_scored'] - $a['points_scored'];
+        }
+        // 4. Nach gewonnenen Sätzen
+        if ($a['sets_won'] != $b['sets_won']) {
+            return $b['sets_won'] - $a['sets_won'];
+        }
+        return 0;
     });
     
     // Rückgabe des Teams an der gewünschten Position
-    if ($position > 0 && $position <= count($standings)) {
-        return $standings[$position - 1]['team_id'];
+    if ($position > 0 && $position <= count($standingsArray)) {
+        return $standingsArray[$position - 1]['team_id'];
     }
     
     return null;

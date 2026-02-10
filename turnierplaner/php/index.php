@@ -125,7 +125,8 @@ foreach ($matches as $m) {
     box-shadow: 0 4px 8px rgba(0,0,0,0.1);
 }
 .match-card.finished {
-    border-left: 4px solid #28a745;
+    border-left: 4px solid #d79c53;
+    /*4px solid #28a745;*/
     background: #f8fff9;
 }
 .match-teams {
@@ -138,7 +139,8 @@ foreach ($matches as $m) {
     color: #6c757d;
 }
 .time-header {
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    /*background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);*/
+    background: linear-gradient(135deg, #f16818 0%, #c58d39 100%);
     color: white;
     font-weight: bold;
     font-size: 1.1rem;
