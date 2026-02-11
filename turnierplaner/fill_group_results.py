@@ -30,8 +30,8 @@ def generate_set_score():
     Returns:
         tuple: (punkte_team1, punkte_team2)
     """
-    team1_points = random.randint(5, 10)
-    team2_points = random.randint(5, 10)
+    team1_points = random.randint(5, 9)
+    team2_points = random.randint(5, 9)
     
     return team1_points, team2_points
 

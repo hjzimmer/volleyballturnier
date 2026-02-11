@@ -20,11 +20,11 @@ def seed_teams():
         except Exception as e:
             print(f"[WARNUNG] Fehler beim Laden von team_config.json: {e}")
             print(f"[OK] Verwende Standard-Teams")
-            teams = [(i, f"Team {i}") for i in range(1, 11)]
+            teams = [(i, f"Team {i}") for i in range(1, 4)]
     else:
         print(f"[WARNUNG] team_config.json nicht gefunden")
         print(f"[OK] Verwende Standard-Teams")
-        teams = [(i, f"Team {i}") for i in range(1, 11)]
+        teams = [(i, f"Team {i}") for i in range(1, 4)]
     
     conn.execute("DELETE FROM teams")
     conn.executemany("INSERT INTO teams (id, name) VALUES (?, ?)", teams)

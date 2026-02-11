@@ -262,12 +262,13 @@ function calculateGroupStandings($db, $groupId) {
             $standings[$t1]['sets_won']++;
             $standings[$t2]['sets_lost']++;
             if (!isset($standings[$t1]['matches'][$t2])) {
-                $standings[$t1]['matches'][$t2] = ['points' => 0, 'point_diff' => 0];
+                $standings[$t1]['matches'][$t2] = ['points' => 0, 'sets_won' => 0, 'point_diff' => 0];
             }
             if (!isset($standings[$t2]['matches'][$t1])) {
-                $standings[$t2]['matches'][$t1] = ['points' => 0, 'point_diff' => 0];
+                $standings[$t2]['matches'][$t1] = ['points' => 0, 'sets_won' => 0, 'point_diff' => 0];
             }
             $standings[$t1]['matches'][$t2]['points'] += 2;
+            $standings[$t1]['matches'][$t2]['sets_won']++;
             $standings[$t1]['matches'][$t2]['point_diff'] += ($p1 - $p2);
             $standings[$t2]['matches'][$t1]['point_diff'] -= ($p1 - $p2);
         } elseif ($p2 > $p1) {
@@ -275,12 +276,13 @@ function calculateGroupStandings($db, $groupId) {
             $standings[$t2]['sets_won']++;
             $standings[$t1]['sets_lost']++;
             if (!isset($standings[$t1]['matches'][$t2])) {
-                $standings[$t1]['matches'][$t2] = ['points' => 0, 'point_diff' => 0];
+                $standings[$t1]['matches'][$t2] = ['points' => 0, 'sets_won' => 0, 'point_diff' => 0];
             }
             if (!isset($standings[$t2]['matches'][$t1])) {
-                $standings[$t2]['matches'][$t1] = ['points' => 0, 'point_diff' => 0];
+                $standings[$t2]['matches'][$t1] = ['points' => 0, 'sets_won' => 0, 'point_diff' => 0];
             }
             $standings[$t2]['matches'][$t1]['points'] += 2;
+            $standings[$t2]['matches'][$t1]['sets_won']++;
             $standings[$t2]['matches'][$t1]['point_diff'] += ($p2 - $p1);
             $standings[$t1]['matches'][$t2]['point_diff'] -= ($p2 - $p1);
         } else {
@@ -289,10 +291,10 @@ function calculateGroupStandings($db, $groupId) {
             $standings[$t1]['sets_draw']++;
             $standings[$t2]['sets_draw']++;
             if (!isset($standings[$t1]['matches'][$t2])) {
-                $standings[$t1]['matches'][$t2] = ['points' => 0, 'point_diff' => 0];
+                $standings[$t1]['matches'][$t2] = ['points' => 0, 'sets_won' => 0, 'point_diff' => 0];
             }
             if (!isset($standings[$t2]['matches'][$t1])) {
-                $standings[$t2]['matches'][$t1] = ['points' => 0, 'point_diff' => 0];
+                $standings[$t2]['matches'][$t1] = ['points' => 0, 'sets_won' => 0, 'point_diff' => 0];
             }
             $standings[$t1]['matches'][$t2]['points'] += 1;
             $standings[$t2]['matches'][$t1]['points'] += 1;
@@ -302,21 +304,21 @@ function calculateGroupStandings($db, $groupId) {
         $standings[$t2]['point_diff'] += ($p2 - $p1);
     }
     
-    // Sortieren: 1. Satzpunkte, 2. Punktdifferenz, 3. Erzielte Punkte
+    // Sortieren: 1. Satzpunkte, 2. Gewonnene Sätze, 3. Punktdifferenz
     usort($standings, function($a, $b) {
         // 1. Nach Satzpunkten
         if ($a['points'] != $b['points']) {
             return $b['points'] - $a['points'];
         }
         
-        // 2. Nach Punktdifferenz
-        if ($a['point_diff'] != $b['point_diff']) {
-            return $b['point_diff'] - $a['point_diff'];
+        // 2. Nach gewonnenen Sätzen
+        if ($a['sets_won'] != $b['sets_won']) {
+            return $b['sets_won'] - $a['sets_won'];
         }
         
-        // 3. Nach erzielten Punkten (mehr erzielte Punkte = besser)
-        if ($a['points_scored'] != $b['points_scored']) {
-            return $b['points_scored'] - $a['points_scored'];
+        // 3. Nach Punktdifferenz
+        if ($a['point_diff'] != $b['point_diff']) {
+            return $b['point_diff'] - $a['point_diff'];
         }
         
         // 4. Direkter Vergleich (nur wenn sie gegeneinander gespielt haben)
@@ -327,16 +329,19 @@ function calculateGroupStandings($db, $groupId) {
                 return $directB - $directA;
             }
             
+            // Bei gleichem Punktestand: Gewonnene Sätze im direkten Vergleich
+            $directSetsA = $a['matches'][$b['id']]['sets_won'];
+            $directSetsB = $b['matches'][$a['id']]['sets_won'];
+            if ($directSetsA != $directSetsB) {
+                return $directSetsB - $directSetsA;
+            }
+            
+            // Bei gleichen gewonnenen Sätzen: Punktdifferenz im direkten Vergleich
             $directDiffA = $a['matches'][$b['id']]['point_diff'];
             $directDiffB = $b['matches'][$a['id']]['point_diff'];
             if ($directDiffA != $directDiffB) {
                 return $directDiffB - $directDiffA;
             }
-        }
-        
-        // 5. Nach gewonnenen Sätzen
-        if ($a['sets_won'] != $b['sets_won']) {
-            return $b['sets_won'] - $a['sets_won'];
         }
         
         return 0;

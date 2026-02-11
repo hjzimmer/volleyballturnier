@@ -12,7 +12,7 @@ def calculate_group_standings(group_id: int):
     team_ids = [t["team_id"] for t in teams]
 
     table = {
-        tid: {"points": 0, "point_diff": 0, "matches": {}}
+        tid: {"points": 0, "sets_won": 0, "point_diff": 0, "matches": {}}
         for tid in team_ids
     }
 
@@ -33,8 +33,10 @@ def calculate_group_standings(group_id: int):
 
         if p1 > p2:
             sp1, sp2 = 2, 0
+            table[t1]["sets_won"] += 1
         elif p2 > p1:
             sp1, sp2 = 0, 2
+            table[t2]["sets_won"] += 1
         else:
             sp1, sp2 = 1, 1
 
@@ -45,11 +47,15 @@ def calculate_group_standings(group_id: int):
         table[t1]["point_diff"] += diff
         table[t2]["point_diff"] -= diff
 
-        table[t1]["matches"].setdefault(t2, {"points": 0, "point_diff": 0})
-        table[t2]["matches"].setdefault(t1, {"points": 0, "point_diff": 0})
+        table[t1]["matches"].setdefault(t2, {"points": 0, "sets_won": 0, "point_diff": 0})
+        table[t2]["matches"].setdefault(t1, {"points": 0, "sets_won": 0, "point_diff": 0})
 
         table[t1]["matches"][t2]["points"] += sp1
         table[t2]["matches"][t1]["points"] += sp2
+        if p1 > p2:
+            table[t1]["matches"][t2]["sets_won"] += 1
+        elif p2 > p1:
+            table[t2]["matches"][t1]["sets_won"] += 1
         table[t1]["matches"][t2]["point_diff"] += diff
         table[t2]["matches"][t1]["point_diff"] -= diff
 
@@ -61,8 +67,9 @@ def sort_group_table(table: dict):
     """
     Sortiert die Gruppentabelle nach:
     1. Satzpunkte (points)
-    2. Punktdifferenz (point_diff)
-    3. Direkter Vergleich (nur relevant wenn genau 2 Teams punktgleich sind)
+    2. Gewonnene Sätze (sets_won)
+    3. Punktdifferenz (point_diff)
+    4. Direkter Vergleich (nur relevant wenn genau 2 Teams punktgleich sind)
     """
     items = list(table.items())
     
@@ -74,11 +81,15 @@ def sort_group_table(table: dict):
         if t1_data["points"] != t2_data["points"]:
             return t2_data["points"] - t1_data["points"]
         
-        # 2. Nach Punktdifferenz (höher ist besser)
+        # 2. Nach gewonnenen Sätzen (höher ist besser)
+        if t1_data["sets_won"] != t2_data["sets_won"]:
+            return t2_data["sets_won"] - t1_data["sets_won"]
+        
+        # 3. Nach Punktdifferenz (höher ist besser)
         if t1_data["point_diff"] != t2_data["point_diff"]:
             return t2_data["point_diff"] - t1_data["point_diff"]
         
-        # 3. Direkter Vergleich (nur wenn sie gegeneinander gespielt haben)
+        # 4. Direkter Vergleich (nur wenn sie gegeneinander gespielt haben)
         if t2_id in t1_data["matches"] and t1_id in t2_data["matches"]:
             direct_t1 = t1_data["matches"][t2_id]["points"]
             direct_t2 = t2_data["matches"][t1_id]["points"]
@@ -86,7 +97,14 @@ def sort_group_table(table: dict):
             if direct_t1 != direct_t2:
                 return direct_t2 - direct_t1
             
-            # Bei gleichem Punktestand: Punktdifferenz im direkten Vergleich
+            # Bei gleichem Punktestand: Gewonnene Sätze im direkten Vergleich
+            direct_sets_t1 = t1_data["matches"][t2_id]["sets_won"]
+            direct_sets_t2 = t2_data["matches"][t1_id]["sets_won"]
+            
+            if direct_sets_t1 != direct_sets_t2:
+                return direct_sets_t2 - direct_sets_t1
+            
+            # Bei gleichen gewonnenen Sätzen: Punktdifferenz im direkten Vergleich
             direct_diff_t1 = t1_data["matches"][t2_id]["point_diff"]
             direct_diff_t2 = t2_data["matches"][t1_id]["point_diff"]
             

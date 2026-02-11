@@ -254,11 +254,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['save_result'])) {
     // Bestimme ob Playoff-Match (alle Endrunden-Matches)
     $isPlayoff = ($matchData['phase'] === 'final');
     
+    // Berechne Gesamtpunkte für beide Teams
+    $totalTeam1 = 0;
+    $totalTeam2 = 0;
+    foreach ($sets as $set) {
+        $totalTeam1 += $set['team1'];
+        $totalTeam2 += $set['team2'];
+    }
+    
     // Validierung: In der Endrunde keine Punktgleichheit erlauben
     if ($isPlayoff) {
-        $totalTeam1 = $set1Team1 + $set2Team1;
-        $totalTeam2 = $set1Team2 + $set2Team2;
-        
         if ($totalTeam1 === $totalTeam2) {
             $errorMsg = "❌ Fehler: In Endrunden-Matches ist Punktgleichheit nicht erlaubt! (Team 1: $totalTeam1 Punkte, Team 2: $totalTeam2 Punkte). Bitte korrigiere das Ergebnis.";
             goto skip_save;
@@ -276,9 +281,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['save_result'])) {
         // 1:1 Satzstand
         if ($isPlayoff) {
             // In der Endrunde entscheidet die Punktdifferenz
-            $totalTeam1 = $set1Team1 + $set2Team1;
-            $totalTeam2 = $set1Team2 + $set2Team2;
-            
             if ($totalTeam1 > $totalTeam2) {
                 $winnerId = $matchData['team1_id'];
                 $loserId = $matchData['team2_id'];
@@ -539,24 +541,20 @@ function getGroupStandingTeam($db, $groupId, $position) {
         $standings[$teamId]['point_diff'] = $data['points_scored'] - $data['points_conceded'];
     }
     
-    // Sortiere nach: 1. Satzpunkte, 2. Punktdifferenz, 3. Erzielte Punkte
+    // Sortiere nach: 1. Satzpunkte, 2. Gewonnene Sätze, 3. Punktdifferenz
     $standingsArray = array_values($standings);
     usort($standingsArray, function($a, $b) {
         // 1. Nach Satzpunkten
         if ($a['points'] != $b['points']) {
             return $b['points'] - $a['points'];
         }
-        // 2. Nach Punktdifferenz
-        if ($a['point_diff'] != $b['point_diff']) {
-            return $b['point_diff'] - $a['point_diff'];
-        }
-        // 3. Nach erzielten Punkten
-        if ($a['points_scored'] != $b['points_scored']) {
-            return $b['points_scored'] - $a['points_scored'];
-        }
-        // 4. Nach gewonnenen Sätzen
+        // 2. Nach gewonnenen Sätzen
         if ($a['sets_won'] != $b['sets_won']) {
             return $b['sets_won'] - $a['sets_won'];
+        }
+        // 3. Nach Punktdifferenz
+        if ($a['point_diff'] != $b['point_diff']) {
+            return $b['point_diff'] - $a['point_diff'];
         }
         return 0;
     });
@@ -787,13 +785,13 @@ $allTeams = $db->query("SELECT id, name FROM teams ORDER BY name")->fetchAll();
                                                         <div class="col">
                                                             <input type="number" name="set<?= $setNum ?>_team1" class="form-control" 
                                                                    placeholder="<?= htmlspecialchars($team1) ?>" 
-                                                                   value="<?= $setData['team1_points'] ?>" required min="0" max="30">
+                                                                   value="<?= $setData['team1_points'] ?>" required min="0" max="99">
                                                         </div>
                                                         <div class="col-auto d-flex align-items-center">:</div>
                                                         <div class="col">
                                                             <input type="number" name="set<?= $setNum ?>_team2" class="form-control" 
                                                                    placeholder="<?= htmlspecialchars($team2) ?>" 
-                                                                   value="<?= $setData['team2_points'] ?>" required min="0" max="30">
+                                                                   value="<?= $setData['team2_points'] ?>" required min="0" max="99">
                                                         </div>
                                                     </div>
                                                 </div>
