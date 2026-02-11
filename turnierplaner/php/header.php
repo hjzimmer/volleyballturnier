@@ -27,7 +27,7 @@ $logoExists = !empty($logoPath) && file_exists(__DIR__ . '/../' . $logoPath);
     
     @media (max-width: 576px) {
         .header-container h2 {
-            font-size: 1rem !important;
+            font-size: 1.2rem !important;
         }
         
         .header-container img {
@@ -36,8 +36,9 @@ $logoExists = !empty($logoPath) && file_exists(__DIR__ . '/../' . $logoPath);
     }
 </style>
 <div class="d-flex justify-content-between align-items-center mb-3 pb-2 border-bottom header-container">
-    <h2 class="mb-0">🏐 <?= htmlspecialchars($tournamentName) ?></h2>
+    <h2 class="mb-0">
     <?php if ($logoExists): ?>
         <img src="logo.php" alt="Logo" style="max-height: 60px;">
     <?php endif; ?>
+    <?= htmlspecialchars($tournamentName) ?></h2>
 </div>

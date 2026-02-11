@@ -154,13 +154,13 @@ foreach ($matches as $m) {
     /* Tabelle wird zu Cards-Layout */
     .mobile-time-block {
         margin-bottom: 20px;
-        border: 2px solid #667eea;
+        border: 2px solid #c58d39;
         border-radius: 8px;
         overflow: hidden;
     }
     
     .mobile-time-header {
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        background: linear-gradient(135deg, #f16818 0%, #c58d39 100%);
         color: white;
         padding: 10px 15px;
         font-weight: bold;

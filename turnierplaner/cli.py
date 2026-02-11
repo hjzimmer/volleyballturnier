@@ -16,22 +16,26 @@ def show_menu():
     print("      Erstellt neue Datenbank, laedt Teams/Config, generiert Matches")
     print("      [!] WARNUNG: LOESCHT ALLE EXISTIERENDEN DATEN!")
     print()
+    print("  [2] Recreate Finals - Endrunde neu erstellen")
+    print("      Loescht nur Endrunden-Matches, behaelt Vorrunde bei")
+    print("      [!] WARNUNG: LOESCHT ENDRUNDEN-ERGEBNISSE!")
+    print()
     print("[SICHER - Aendert nur Zeitplanung/Zuordnungen]")
-    print("  [2] Schedule - Zeitplan neu berechnen")
+    print("  [3] Schedule - Zeitplan neu berechnen")
     print("      Berechnet Start-Zeiten und Feldzuordnungen neu")
     print()
-    print("  [3] Assign Refs - Schiedsrichter zuweisen")
+    print("  [4] Assign Refs - Schiedsrichter zuweisen")
     print("      Weist automatisch Schiedsrichter fuer Gruppenspiele zu")
     print()
-    print("  [4] Rename Team - Team umbenennen")
+    print("  [5] Rename Team - Team umbenennen")
     print("      Interaktives Menue zum Umbenennen von Teams")
     print()
     print("[VALIDIERUNG]")
-    print("  [5] Validate Config - Konfiguration pruefen")
+    print("  [6] Validate Config - Konfiguration pruefen")
     print("      Prueft team_config.json auf Fehler und zeigt Statistiken")
     print()
     print("[NUR ZUM TESTEN]")
-    print("  [6] Fill Results - Testdaten generieren")
+    print("  [7] Fill Results - Testdaten generieren")
     print("      Fuellt alle Gruppenspiele mit Zufallsergebnissen")
     print("      [!] WARNUNG: Ueberschreibt existierende Ergebnisse!")
     print()
@@ -47,13 +51,46 @@ def run_action(action):
     if action == "1" or action == "init":
         print("[INIT] Starte Turnier-Initialisierung...")
         print("-" * 70)
-        result = subprocess.run([sys.executable, "main.py"], capture_output=True, text=True)
-        print(result.stdout)
-        if result.stderr:
-            print(result.stderr, file=sys.stderr)
-        return result.returncode == 0
-    
-    elif action == "2" or action == "schedule":
+        
+        print("=" * 60)
+        print("[INIT] Starte Turnier-Initialisierung...")
+        print("=" * 60)
+        print()
+        print("!!!  ACHTUNG: Dies löscht die gesamte Datenbank und startet von vorne.  !!!")
+        print()
+        confirm = input("Fortfahren? (ja/nein): ").strip().lower()
+        if confirm in ['ja', 'j', 'yes', 'y']:
+          print()
+          result = subprocess.run([sys.executable, "main.py"], capture_output=True, text=True)
+          print(result.stdout)
+          if result.stderr:
+              print(result.stderr, file=sys.stderr)
+          return result.returncode == 0
+        else:
+          print("\nAbgebrochen.")
+          return False          
+
+    elif action == "2" or action == "recreate_finals":
+        print("[RECREATE FINALS] Starte Endrunden-Neuerstellung...")
+        print("-" * 70)
+        
+        print("=" * 60)
+        print("[RECREATE FINALS] Endrunde neu erstellen")
+        print("=" * 60)
+        print()
+        print("!!!  ACHTUNG: Dies löscht alle Endrunden-Matches und deren Ergebnisse.  !!!")
+        print("     Teams und Vorrunden-Ergebnisse bleiben erhalten.")
+        print()
+        confirm = input("Fortfahren? (ja/nein): ").strip().lower()
+        if confirm in ['ja', 'j', 'yes', 'y']:
+            print()
+            result = subprocess.run([sys.executable, "recreate_finals.py", "--yes"])
+            return result.returncode == 0
+        else:
+            print("\nAbgebrochen.")
+            return False
+
+    elif action == "3" or action == "schedule":
         print("[SCHEDULE] Berechne Zeitplan neu...")
         print("-" * 70)
         schedule_all_matches("turnier_config.json")
@@ -61,7 +98,7 @@ def run_action(action):
         print("[OK] Zeitplan erstellt")
         return True
     
-    elif action == "3" or action == "assign_refs":
+    elif action == "4" or action == "assign_refs":
         print("[ASSIGN REFS] Weise Schiedsrichter zu...")
         print("-" * 70)
         assign_group_referees()
@@ -69,19 +106,19 @@ def run_action(action):
         print("[OK] Schiedsrichter zugewiesen")
         return True
     
-    elif action == "4" or action == "rename_team":
+    elif action == "5" or action == "rename_team":
         print("[RENAME TEAM] Starte Team-Umbenennung...")
         print("-" * 70)
         result = subprocess.run([sys.executable, "rename_team.py"])
         return result.returncode == 0
     
-    elif action == "5" or action == "validate":
+    elif action == "6" or action == "validate":
         print("[VALIDATE] Pruefe Konfiguration...")
         print("-" * 70)
         result = subprocess.run([sys.executable, "validate_config.py"])
         return result.returncode == 0
     
-    elif action == "6" or action == "fill_results":
+    elif action == "7" or action == "fill_results":
         print("[FILL RESULTS] Generiere Testdaten...")
         print("-" * 70)
         result = subprocess.run([sys.executable, "fill_group_results.py"])
@@ -103,7 +140,7 @@ def interactive_mode():
             print("Auf Wiedersehen!")
             break
         
-        if choice in ["1", "2", "3", "4", "5", "6"]:
+        if choice in ["1", "2", "3", "4", "5", "6", "7"]:
             success = run_action(choice)
             
             print()
@@ -117,7 +154,7 @@ def interactive_mode():
             input("\nDruecke Enter um fortzufahren...")
         else:
             print()
-            print("[FEHLER] Ungueltige Eingabe. Bitte waehle 1-6 oder 'q'.")
+            print("[FEHLER] Ungueltige Eingabe. Bitte waehle 1-7 oder 'q'.")
             input("\nDruecke Enter um fortzufahren...")
 
 
@@ -126,7 +163,7 @@ def main():
     # Direkter Modus: python cli.py <action>
     if len(sys.argv) > 1:
         action = sys.argv[1]
-        valid_actions = ["init", "schedule", "assign_refs", "fill_results", "rename_team", "validate"]
+        valid_actions = ["init", "recreate_finals", "schedule", "assign_refs", "fill_results", "rename_team", "validate"]
         
         if action in valid_actions:
             success = run_action(action)
