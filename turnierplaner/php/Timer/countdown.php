@@ -34,6 +34,8 @@ if (file_exists($configFile)) {
     }
 }
 
+// Hinweis: Der garantierte Alarm wird dynamisch in JavaScript hinzugefügt (bei startSeconds - 1)
+
 function parseTimeValue($value) {
     $value = trim($value);
     if (strpos($value, ':') !== false) {
@@ -406,6 +408,13 @@ function parseTimeValue($value) {
         let currentAudio = null;
         let fadeInterval = null;
         
+        // Garantierter Alarm-Sound (wird dynamisch hinzugefügt)
+        const guaranteedAlarmSound = {
+            file: 'sounds/alarm-2.mp3',
+            offset: 0,
+            fade: 0
+        };
+        
         // UI Elemente
         const display = document.getElementById('countdownDisplay');
         const startBtn = document.getElementById('startBtn');
@@ -413,7 +422,7 @@ function parseTimeValue($value) {
         const statusIndicator = document.getElementById('statusIndicator');
         const startTimeInput = document.getElementById('startTime');
         const timeInputs = document.querySelector('.time-inputs');
-        timeInputs.style.display = 'none';  // makes time inputs invisible
+        //timeInputs.style.display = 'none';  // makes time inputs invisible
         const alertInfo = document.getElementById('alertInfo');
         alertInfo.style.display = 'none'; // Alert-Info set zu inaktiv
 
@@ -464,13 +473,16 @@ function parseTimeValue($value) {
                 updateDisplay();
             }
             
+console.log('Startzeit gesetzt auf:', formatTime(startSeconds));            
+            
             // Verhindere Start wenn Zeit 0 ist
             if (currentTime <= 0) {
                 return;
             }
             
-            // Aktualisiere Alarm-Zeiten
+            // Aktualisiere Alarm-Zeiten (inkl. garantiertem Alarm)
             updateAlertTimes();
+            addGuaranteedAlarm();
             
             isRunning = true;
             isPaused = false;
@@ -588,6 +600,25 @@ function parseTimeValue($value) {
                     }
                 }
             });
+        }
+        
+        function addGuaranteedAlarm() {
+            // Entferne alte garantierte Alarme (falls vorhanden)
+            for (let i = soundConfig.length - 1; i >= 0; i--) {
+                if (soundConfig[i].isGuaranteed) {
+                    soundConfig.splice(i, 1);
+                }
+            }
+            
+            // Füge garantierten Alarm bei startSeconds - 1 hinzu
+            const guaranteedAlertTime = startSeconds - 1;
+            soundConfig.push({
+                alertTime: guaranteedAlertTime,
+                sounds: [guaranteedAlarmSound],
+                isGuaranteed: true  // Markierung für späteres Entfernen
+            });
+            
+console.log('Garantierter Alarm hinzugefügt bei:', formatTime(guaranteedAlertTime));
         }
         
         function checkAlerts() {

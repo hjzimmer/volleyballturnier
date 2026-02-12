@@ -190,13 +190,13 @@ require 'db.php';
     <div class="input-group input-group-sm" style="width: auto;">
         <input type="text" id="remoteTimerStart" class="form-control" placeholder="MM:SS" 
                pattern="[0-9]{1,2}:[0-9]{2}" value="<?php echo sprintf('%02d:00', $setMinutes); ?>" style="width: 80px;">
-        <button id="startTimerBtn" class="btn btn-primary" onclick="sendTimerCommand('start')">
+        <button id="startTimerBtn" class="btn btn-primary" onclick="sendTimerCommand('start', this)">
             ⏱️ Start
         </button>
-        <button class="btn btn-warning" onclick="sendTimerCommand('pause')">
+        <button class="btn btn-warning" onclick="sendTimerCommand('pause', this)">
             ⏸️ Pause
         </button>
-        <button class="btn btn-info" onclick="sendTimerCommand('reset')">
+        <button class="btn btn-info" onclick="sendTimerCommand('reset', this)">
             🔄 Reset
         </button>
     </div>
@@ -1110,14 +1110,8 @@ document.addEventListener('DOMContentLoaded', function() {
 });
 
 // Timer Remote Control
-async function sendTimerCommand(command) {
-  const btn = document.getElementById('startTimerBtn');
-  const originalText = btn.innerHTML;
-  
+async function sendTimerCommand(command, buttonElement) {
   try {
-    btn.disabled = true;
-    btn.innerHTML = '⏱️ Sende...';
-    
     // Payload mit optionaler Startzeit
     const payload = { command: command };
     if (command === 'start') {
@@ -1127,34 +1121,15 @@ async function sendTimerCommand(command) {
       }
     }
     
-    const response = await fetch('Timer/timer_control.php', {
+    await fetch('Timer/timer_control.php', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json'
       },
       body: JSON.stringify(payload)
     });
-    
-    const result = await response.json();
-    
-    if (result.success) {
-      btn.innerHTML = '✅ Gesendet!';
-      btn.classList.remove('btn-primary');
-      btn.classList.add('btn-success');
-      
-      setTimeout(() => {
-        btn.innerHTML = originalText;
-        btn.classList.remove('btn-success');
-        btn.classList.add('btn-primary');
-        btn.disabled = false;
-      }, 2000);
-    } else {
-      throw new Error(result.error || 'Unbekannter Fehler');
-    }
   } catch (error) {
-    alert('Fehler beim Senden des Timer-Befehls: ' + error.message);
-    btn.innerHTML = originalText;
-    btn.disabled = false;
+    console.error('Fehler beim Senden des Timer-Befehls:', error);
   }
 }
 </script>

@@ -1,8 +1,8 @@
 {
-  "start": "0:20",
+  "start": "9:00",
   "alerts": [
     {
-      "alertTime": "1:19",
+      "alertTime": "90:18",
       "sounds": [
         {
           "file": "sounds/alarm-2.mp3",
@@ -12,8 +12,8 @@
       ]
     },
     {
-      "alertTime": "0:15",
-      "sounds2": [
+      "alertTime": "1:00",
+      "sounds": [
         { "file": "sounds/Music/ACDC-All_Night_Long.mp3", "offset": 17, "fade": 3 },
         { "file": "sounds/Music/ACDC_TNT.mp3", "offset": 24, "fade": 3 },
         { "file": "sounds/Music/Alan_Walker_-_The_Spectre.mp3", "offset": 20, "fade": 3 },
@@ -81,14 +81,12 @@
         { "file": "sounds/Music/The_Offspring_-_Pretty_Fly_.mp3", "offset": 8, "fade": 3 },
         { "file": "sounds/Music/The_White_Stripes_-_Seven_Nation_Army_.mp3", "offset": 11, "fade": 3 },
         { "file": "sounds/Music/Was_wollen_wir_trinken_2K17_.mp3", "offset": 0, "fade": 3 },
-        { "file": "sounds/Music/Topic-_Breaking_Me_.mp3", "offset": 4, "fade": 3 }
-      ],
-      "sounds": [
+        { "file": "sounds/Music/Topic-_Breaking_Me_.mp3", "offset": 4, "fade": 3 },
         { "file": "sounds/Music/Usher_-_DJ_Got_Us_Fallin_In_Love_.mp3", "offset": 28, "fade": 3 }
       ]
     },
     {
-      "alertTime": "20:01",
+      "alertTime": "0:01",
       "sounds": [
         {
           "file": "sounds/alarm-1.wav",

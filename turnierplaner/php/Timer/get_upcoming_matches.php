@@ -31,8 +31,6 @@ try {
         LEFT JOIN teams t2 ON m.team2_id = t2.id
         LEFT JOIN teams tr ON m.referee_team_id = tr.id
         WHERE m.finished = 0
-            AND m.team1_id IS NOT NULL
-            AND m.team2_id IS NOT NULL
         ORDER BY m.start_time ASC
         LIMIT 4
     ";
