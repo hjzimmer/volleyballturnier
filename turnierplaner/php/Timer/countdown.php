@@ -9,6 +9,7 @@
 $configFile = 'config.json';
 $soundConfig = [];
 $defaultStart = 600;
+$log = '';
 
 if (file_exists($configFile)) {
     $jsonContent = file_get_contents($configFile);
@@ -23,10 +24,11 @@ if (file_exists($configFile)) {
         // Lese Alerts
         if (isset($config['alerts']) && is_array($config['alerts'])) {
             foreach ($config['alerts'] as $alert) {
-                if (isset($alert['alertTime']) && isset($alert['sounds'])) {
+                if (isset($alert['alertTime']) && isset($alert['sounds']) && isset($alert['id'])) {
                     $soundConfig[] = [
                         'alertTime' => parseTimeValue($alert['alertTime']),
-                        'sounds' => $alert['sounds']
+                        'sounds' => $alert['sounds'],
+                        'id' => $alert['id']
                     ];
                 }
             }
@@ -369,12 +371,18 @@ function parseTimeValue($value) {
                 $alertCount++;
                 $alertMinutes = floor($alert['alertTime'] / 60);
                 $alertSeconds = $alert['alertTime'] % 60;
+                $alertID = $alert['id'];
                 echo "<div class=\"input-group\">\n";
-                echo "    <label for=\"alert{$alertCount}\">Alarm {$alertCount} (MM:SS):</label>\n";
+                echo "    <label for=\"alert{$alertCount}\">Alarm ID {$alertID} (MM:SS):</label>\n";
                 echo "    <input type=\"text\" id=\"alert{$alertCount}\" value=\"" . sprintf('%02d:%02d', $alertMinutes, $alertSeconds) . "\" pattern=\"[0-9]{1,2}:[0-9]{2}\">\n";
                 echo "</div>\n";
             }
             ?>
+        </div>
+        <div class="checkbox-group">
+            <label>
+                <input type="checkbox" id="myCheckbox" onchange="handleCheckboxChange(this)">
+            </label>
         </div>
         <div class="buttons">
             <button class="btn-start" id="startBtn" onclick="startTimer()">▶️ Start</button>
@@ -429,6 +437,15 @@ function parseTimeValue($value) {
         // Initialisiere Anzeige
         updateDisplay();
         
+        function handleCheckboxChange(checkbox) {
+            if (checkbox.checked) {
+                const timeInputs = document.querySelector('.time-inputs');
+                timeInputs.style.display = 'none';  // makes time inputs invisible            
+            } else {
+                const timeInputs = document.querySelector('.time-inputs');
+                timeInputs.style.display = 'flex';  // makes time inputs visible            
+            }
+        }
         function parseTimeInput(value) {
             const match = value.match(/^(\d{1,2}):(\d{2})$/);
             if (match) {
@@ -472,9 +489,7 @@ function parseTimeValue($value) {
                 triggeredAlerts.clear(); // Setze Alerts zurück bei neuem Start
                 updateDisplay();
             }
-            
-console.log('Startzeit gesetzt auf:', formatTime(startSeconds));            
-            
+                        
             // Verhindere Start wenn Zeit 0 ist
             if (currentTime <= 0) {
                 return;
@@ -618,7 +633,6 @@ console.log('Startzeit gesetzt auf:', formatTime(startSeconds));
                 isGuaranteed: true  // Markierung für späteres Entfernen
             });
             
-console.log('Garantierter Alarm hinzugefügt bei:', formatTime(guaranteedAlertTime));
         }
         
         function checkAlerts() {
@@ -634,7 +648,7 @@ console.log('Garantierter Alarm hinzugefügt bei:', formatTime(guaranteedAlertTi
                         
                         // Zeige Alert-Info an
                         const fileName = randomSound.file.split('/').pop();
-                        alertInfo.innerHTML = `<span>🔔 Alert ${idx + 1} bei ${formatTime(alert.alertTime)}: </span><span class="filename">${fileName}</span><span class="params"> (Offset: ${randomSound.offset}s, Fade: ${randomSound.fade}s)</span>`;
+                        alertInfo.innerHTML = `<span> Alert ${idx + 1} bei ${formatTime(alert.alertTime)}: </span><span class="filename">${fileName}</span><span class="params"> (Offset: ${randomSound.offset}s, Fade: ${randomSound.fade}s)</span>`;
                         alertInfo.classList.add('visible');
                         
                         // Info nach 10 Sekunden ausblenden
@@ -780,7 +794,7 @@ console.log('Garantierter Alarm hinzugefügt bei:', formatTime(guaranteedAlertTi
             try {
                 const response = await fetch('timer_control.php');
                 const data = await response.json();
-                
+ console.log('timer_control check ', data);               
                 // Prüfe ob neuer Befehl vorhanden
                 if (data.command && data.timestamp && data.timestamp !== lastCommandTimestamp) {
                     lastCommandTimestamp = data.timestamp;
@@ -848,7 +862,7 @@ console.log('Garantierter Alarm hinzugefügt bei:', formatTime(guaranteedAlertTi
                             <span class="vs-separator">vs</span>
                             <span class="team-name">${match.team2}</span>
                         </div>
-                        <div class="match-referee">👨‍⚖️ ${match.referee || '—'}</div>
+                        <div class="match-referee">Schiri:️ ${match.referee || '—'}</div>
                     </div>
                 `;
 

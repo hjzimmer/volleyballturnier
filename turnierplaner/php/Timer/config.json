@@ -1,7 +1,8 @@
 {
   "start": "9:00",
-  "alerts": [
+  "alerts_disabled": [
     {
+      "id": 1,
       "alertTime": "90:18",
       "sounds": [
         {
@@ -10,8 +11,11 @@
           "fade": 0
         }
       ]
-    },
+    }
+  ],
+  "alerts": [
     {
+      "id": 2,
       "alertTime": "1:00",
       "sounds": [
         { "file": "sounds/Music/ACDC-All_Night_Long.mp3", "offset": 17, "fade": 3 },
@@ -86,7 +90,8 @@
       ]
     },
     {
-      "alertTime": "0:01",
+     "id": 3,
+     "alertTime": "0:01",
       "sounds": [
         {
           "file": "sounds/alarm-1.wav",
