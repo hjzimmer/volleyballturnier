@@ -7,12 +7,12 @@ def assign_group_referees():
     """
     conn = get_connection()
     
-    # Hole alle Gruppenspiele sortiert nach ID (entspricht dem Zeitplan)
+    # Hole alle Gruppenspiele sortiert nach Startzeit und ID
     matches = conn.execute("""
-        SELECT id, group_id, team1_id, team2_id 
+        SELECT id, group_id, team1_id, team2_id, start_time
         FROM matches 
         WHERE phase = 'group'
-        ORDER BY id
+        ORDER BY start_time, id
     """).fetchall()
     
     # Hole alle Teams pro Gruppe
@@ -29,7 +29,57 @@ def assign_group_referees():
     
     for match in matches:
         group_id = match["group_id"]
+        start_time = match["start_time"]
         playing_teams = {match["team1_id"], match["team2_id"]}
+        
+        # Finde alle Teams, die zur gleichen Zeit spielen (auch in anderen Gruppen)
+        concurrent_matches = conn.execute("""
+            SELECT team1_id, team2_id 
+            FROM matches 
+            WHERE start_time = ? AND id != ?
+            AND team1_id IS NOT NULL AND team2_id IS NOT NULL
+        """, (start_time, match["id"])).fetchall()
+        
+        for concurrent_match in concurrent_matches:
+            playing_teams.add(concurrent_match["team1_id"])
+            playing_teams.add(concurrent_match["team2_id"])
+        
+        # Finde Teams, die bereits als Schiedsrichter für Spiele zur gleichen Zeit zugewiesen sind
+        already_refereeing = conn.execute("""
+            SELECT referee_team_id 
+            FROM matches 
+            WHERE start_time = ? AND id != ?
+            AND referee_team_id IS NOT NULL
+        """, (start_time, match["id"])).fetchall()
+        
+        for ref_match in already_refereeing:
+            if ref_match["referee_team_id"]:
+                playing_teams.add(ref_match["referee_team_id"])
+        
+        # Finde den nächsten Zeitslot
+        next_time_result = conn.execute("""
+            SELECT MIN(start_time) as next_time
+            FROM matches
+            WHERE start_time > ?
+        """, (start_time,)).fetchone()
+        
+        if next_time_result and next_time_result["next_time"]:
+            next_time = next_time_result["next_time"]
+            
+            # Hole alle Teams, die im nächsten Zeitslot spielen
+            next_slot_matches = conn.execute("""
+                SELECT team1_id, team2_id 
+                FROM matches 
+                WHERE start_time = ?
+                AND team1_id IS NOT NULL AND team2_id IS NOT NULL
+            """, (next_time,)).fetchall()
+            
+            # Schließe diese Teams aus
+            for next_match in next_slot_matches:
+                if next_match["team1_id"]:
+                    playing_teams.add(next_match["team1_id"])
+                if next_match["team2_id"]:
+                    playing_teams.add(next_match["team2_id"])
         
         # Finde verfügbare Teams aus derselben Gruppe
         available_teams = [
@@ -59,13 +109,14 @@ def assign_group_referees():
 def assign_final_referee(match_id):
     """
     Weist einen Schiedsrichter für ein Finalrunden-Match zu.
-    Wählt ein Team, das in diesem Match nicht spielt und möglichst wenig Schiedsrichter-Einsätze hat.
+    Wählt ein Team, das in diesem Match nicht spielt, zur gleichen Zeit nicht auf einem anderen Feld spielt,
+    und möglichst wenig Schiedsrichter-Einsätze hat.
     """
     conn = get_connection()
     
-    # Hole Match-Informationen
+    # Hole Match-Informationen inkl. Startzeit
     match = conn.execute(
-        "SELECT team1_id, team2_id FROM matches WHERE id = ?",
+        "SELECT team1_id, team2_id, start_time FROM matches WHERE id = ?",
         (match_id,)
     ).fetchone()
     
@@ -74,6 +125,51 @@ def assign_final_referee(match_id):
         return None
     
     playing_teams = {match["team1_id"], match["team2_id"]}
+    start_time = match["start_time"]
+    
+    # Hole alle Teams, die zur gleichen Zeit auf anderen Feldern spielen
+    concurrent_matches = conn.execute("""
+        SELECT team1_id, team2_id 
+        FROM matches 
+        WHERE start_time = ? AND id != ? 
+        AND team1_id IS NOT NULL AND team2_id IS NOT NULL
+    """, (start_time, match_id)).fetchall()
+    
+    # Sammle alle Teams, die zur gleichen Zeit spielen
+    for concurrent_match in concurrent_matches:
+        playing_teams.add(concurrent_match["team1_id"])
+        playing_teams.add(concurrent_match["team2_id"])
+    
+    # Schließe Teams aus, die bereits als Schiedsrichter zur gleichen Zeit zugewiesen sind
+    already_refereeing = conn.execute("""
+        SELECT referee_team_id 
+        FROM matches 
+        WHERE start_time = ? AND id != ? AND referee_team_id IS NOT NULL
+    """, (start_time, match_id)).fetchall()
+    
+    for ref in already_refereeing:
+        playing_teams.add(ref["referee_team_id"])
+    
+    # Finde den nächsten Zeitslot
+    next_time = conn.execute("""
+        SELECT MIN(start_time) as next_time
+        FROM matches
+        WHERE start_time > ?
+    """, (start_time,)).fetchone()["next_time"]
+    
+    if next_time:
+        # Hole alle Teams, die im nächsten Zeitslot spielen
+        next_slot_matches = conn.execute("""
+            SELECT team1_id, team2_id 
+            FROM matches 
+            WHERE start_time = ?
+            AND team1_id IS NOT NULL AND team2_id IS NOT NULL
+        """, (next_time,)).fetchall()
+        
+        # Schließe diese Teams aus
+        for next_match in next_slot_matches:
+            playing_teams.add(next_match["team1_id"])
+            playing_teams.add(next_match["team2_id"])
     
     # Hole alle Teams und zähle ihre Schiedsrichter-Einsätze
     teams = conn.execute("SELECT id FROM teams ORDER BY id").fetchall()
@@ -105,3 +201,56 @@ def assign_final_referee(match_id):
     
     conn.close()
     return None
+
+
+def assign_final_referees():
+    """
+    Weist Schiedsrichter für alle Finalrunden-Matches zu.
+    Berücksichtigt nur unbespielte Paarungen (finished = 0) mit festgelegten Teams.
+    """
+    conn = get_connection()
+    
+    # Hole alle ungespielten Finalrunden-Matches mit beiden Teams
+    matches = conn.execute("""
+        SELECT id, team1_id, team2_id 
+        FROM matches 
+        WHERE phase = 'final' 
+        AND finished = 0
+        AND team1_id IS NOT NULL 
+        AND team2_id IS NOT NULL
+        ORDER BY start_time, id
+    """).fetchall()
+    
+    assigned_count = 0
+    skipped_count = 0
+    
+    for match in matches:
+        match_id = match["id"]
+        
+#        # Prüfe ob bereits ein Schiedsrichter zugewiesen ist
+#        existing_ref = conn.execute(
+#            "SELECT referee_team_id FROM matches WHERE id = ?",
+#            (match_id,)
+#        ).fetchone()["referee_team_id"]
+#        
+#        if existing_ref:
+#            print(f"Match {match_id}: Schiedsrichter bereits zugewiesen (Team {existing_ref})")
+#            skipped_count += 1
+#            continue
+#        
+        # Weise Schiedsrichter zu
+        referee = assign_final_referee(match_id)
+        
+        if referee:
+            print(f"Match {match_id}: Team {referee} als Schiedsrichter zugewiesen")
+            assigned_count += 1
+        else:
+            print(f"Match {match_id}: Kein verfügbares Schiedsrichter-Team gefunden")
+    
+    conn.close()
+    
+    print()
+    print(f"Schiedsrichter für Finalrunde zugewiesen:")
+    print(f"  - {assigned_count} neu zugewiesen")
+    print(f"  - {skipped_count} bereits zugewiesen")
+    print(f"  - {len(matches)} Matches gesamt")

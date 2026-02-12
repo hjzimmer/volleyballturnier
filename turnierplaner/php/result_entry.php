@@ -6,6 +6,7 @@ $configPath = __DIR__ . '/../turnier_config.json';
 $config = json_decode(file_get_contents($configPath), true);
 $requiredPassword = $config['result_entry_password'] ?? 'admin';
 $setsPerMatch = $config['sets_per_match'] ?? 2;
+$setMinutes = $config['set_minutes'] ?? 10;
 
 // Logout-Funktion
 if (isset($_GET['logout'])) {
@@ -185,8 +186,21 @@ require 'db.php';
 
 <?php include 'header.php'; ?>
 
-<div class="d-flex justify-content-end align-items-center mb-3">
-    <a href="print_match_cards.php" target="_blank" class="btn btn-sm btn-success me-2">
+<div class="d-flex justify-content-end align-items-center mb-3 flex-wrap gap-2">
+    <div class="input-group input-group-sm" style="width: auto;">
+        <input type="text" id="remoteTimerStart" class="form-control" placeholder="MM:SS" 
+               pattern="[0-9]{1,2}:[0-9]{2}" value="<?php echo sprintf('%02d:00', $setMinutes); ?>" style="width: 80px;">
+        <button id="startTimerBtn" class="btn btn-primary" onclick="sendTimerCommand('start')">
+            ⏱️ Start
+        </button>
+        <button class="btn btn-warning" onclick="sendTimerCommand('pause')">
+            ⏸️ Pause
+        </button>
+        <button class="btn btn-info" onclick="sendTimerCommand('reset')">
+            🔄 Reset
+        </button>
+    </div>
+    <a href="print_match_cards.php" target="_blank" class="btn btn-sm btn-success">
         🖨️ Spielberichtsbogen drucken
     </a>
     <a href="result_entry.php?logout=1" class="btn btn-sm btn-outline-secondary">🔓 Abmelden</a>
@@ -328,20 +342,45 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['save_result'])) {
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['delete_result'])) {
     $matchId = $_POST['match_id'];
     
-    // Hole Phase des Matches
-    $match = $db->query("SELECT phase FROM matches WHERE id = $matchId")->fetch();
+    // Hole Phase und Round des Matches
+    $match = $db->query("SELECT phase, round FROM matches WHERE id = $matchId")->fetch();
     $isGroupMatch = ($match && $match['phase'] === 'group');
+    $isFinalMatch = ($match && $match['phase'] === 'final');
     
-    $db->prepare("DELETE FROM sets WHERE match_id = ?")->execute([$matchId]);
-    $db->prepare("UPDATE matches SET finished = 0, winner_id = NULL, loser_id = NULL WHERE id = ?")
-        ->execute([$matchId]);
-    
-    // Wenn es ein Gruppenspiel war, aktualisiere alle Finalspiele mit Gruppenreferenzen
-    if ($isGroupMatch) {
-        updateGroupPositionsInFinals($db);
+    // Bei Finalrunden-Spielen: Prüfe ob abhängige Matches betroffen sind
+    $dependentMatches = [];
+    if ($isFinalMatch && !isset($_POST['confirm_cascade'])) {
+        $dependentMatches = checkDependentFinalMatches($db, $matchId, $match['round']);
     }
     
-    $successMsg = "Ergebnis erfolgreich gelöscht!";
+    // Wenn abhängige Matches vorhanden sind und noch nicht bestätigt wurde
+    if (!empty($dependentMatches) && !isset($_POST['confirm_cascade'])) {
+        // Zeige Warnung mit Bestätigungsformular
+        $cascadeWarning = [
+            'match_id' => $matchId,
+            'matches' => $dependentMatches
+        ];
+    } else {
+        // Führe das Löschen durch
+        $warnings = [];
+        if ($isFinalMatch) {
+            $warnings = resetDependentFinalMatches($db, $matchId, $match['round']);
+        }
+        
+        $db->prepare("DELETE FROM sets WHERE match_id = ?")->execute([$matchId]);
+        $db->prepare("UPDATE matches SET finished = 0, winner_id = NULL, loser_id = NULL WHERE id = ?")
+            ->execute([$matchId]);
+        
+        // Wenn es ein Gruppenspiel war, aktualisiere alle Finalspiele mit Gruppenreferenzen
+        if ($isGroupMatch) {
+            updateGroupPositionsInFinals($db);
+        }
+        
+        $successMsg = "Ergebnis erfolgreich gelöscht!";
+        if (!empty($warnings)) {
+            $successMsg .= "<br><strong>Achtung:</strong> Folgende abhängige Matches haben bereits Ergebnisse und wurden zurückgesetzt:<br>" . implode("<br>", $warnings);
+        }
+    }
 }
 
 // Funktion zum Aktualisieren von Finalrunden-Matches
@@ -381,6 +420,103 @@ function updateFinalMatches($db, $completedMatchId) {
                 ->execute([$newTeam1Id, $newTeam2Id, $match['id']]);
         }
     }
+}
+
+// Funktion zum Prüfen abhängiger Finalrunden-Matches (ohne Löschen)
+function checkDependentFinalMatches($db, $matchId, $round) {
+    $affected = [];
+    
+    // Erstelle match_key aus round (Leerzeichen → Unterstriche)
+    $matchKey = str_replace(' ', '_', $round);
+    
+    // Finde alle Matches, die auf dieses Match referenzieren
+    $winnerRef = "W_" . $matchKey;
+    $loserRef = "L_" . $matchKey;
+    
+    $stmt = $db->prepare("
+        SELECT id, round, finished, team1_ref, team2_ref
+        FROM matches 
+        WHERE phase = 'final' 
+          AND (team1_ref = ? OR team1_ref = ? OR team2_ref = ? OR team2_ref = ?)
+    ");
+    $stmt->execute([$winnerRef, $loserRef, $winnerRef, $loserRef]);
+    $dependentMatches = $stmt->fetchAll();
+    
+    foreach ($dependentMatches as $match) {
+        $affected[] = [
+            'round' => $match['round'],
+            'finished' => $match['finished']
+        ];
+        
+        // Rekursiv: Prüfe ob dieses Match weitere abhängige Matches hat
+        if ($match['finished'] == 1) {
+            $subAffected = checkDependentFinalMatches($db, $match['id'], $match['round']);
+            $affected = array_merge($affected, $subAffected);
+        }
+    }
+    
+    return $affected;
+}
+
+// Funktion zum Zurücksetzen abhängiger Finalrunden-Matches
+function resetDependentFinalMatches($db, $deletedMatchId, $deletedRound) {
+    $warnings = [];
+    
+    // Erstelle match_key aus round (Leerzeichen → Unterstriche)
+    $matchKey = str_replace(' ', '_', $deletedRound);
+    
+    // Finde alle Matches, die auf dieses Match referenzieren (W_<matchKey> oder L_<matchKey>)
+    $winnerRef = "W_" . $matchKey;
+    $loserRef = "L_" . $matchKey;
+    
+    $stmt = $db->prepare("
+        SELECT id, round, finished, team1_ref, team2_ref, team1_id, team2_id
+        FROM matches 
+        WHERE phase = 'final' 
+          AND (team1_ref = ? OR team1_ref = ? OR team2_ref = ? OR team2_ref = ?)
+    ");
+    $stmt->execute([$winnerRef, $loserRef, $winnerRef, $loserRef]);
+    $dependentMatches = $stmt->fetchAll();
+    
+    foreach ($dependentMatches as $match) {
+        $needsReset = false;
+        $newTeam1Id = $match['team1_id'];
+        $newTeam2Id = $match['team2_id'];
+        
+        // Prüfe team1_ref
+        if ($match['team1_ref'] === $winnerRef || $match['team1_ref'] === $loserRef) {
+            $newTeam1Id = null;
+            $needsReset = true;
+        }
+        
+        // Prüfe team2_ref
+        if ($match['team2_ref'] === $winnerRef || $match['team2_ref'] === $loserRef) {
+            $newTeam2Id = null;
+            $needsReset = true;
+        }
+        
+        if ($needsReset) {
+            // Wenn das abhängige Match bereits ein Ergebnis hat, füge Warnung hinzu
+            if ($match['finished'] == 1) {
+                $warnings[] = "• " . htmlspecialchars($match['round']) . " (Ergebnis wurde ebenfalls gelöscht)";
+                
+                // Lösche auch das Ergebnis des abhängigen Matches
+                $db->prepare("DELETE FROM sets WHERE match_id = ?")->execute([$match['id']]);
+                $db->prepare("UPDATE matches SET finished = 0, winner_id = NULL, loser_id = NULL, team1_id = ?, team2_id = ? WHERE id = ?")
+                    ->execute([$newTeam1Id, $newTeam2Id, $match['id']]);
+                
+                // Rekursiv: Prüfe ob dieses Match weitere abhängige Matches hat
+                $subWarnings = resetDependentFinalMatches($db, $match['id'], $match['round']);
+                $warnings = array_merge($warnings, $subWarnings);
+            } else {
+                // Nur Teams zurücksetzen, kein Ergebnis vorhanden
+                $db->prepare("UPDATE matches SET team1_id = ?, team2_id = ? WHERE id = ?")
+                    ->execute([$newTeam1Id, $newTeam2Id, $match['id']]);
+            }
+        }
+    }
+    
+    return $warnings;
 }
 
 // Funktion zum Aktualisieren aller Finalspiele mit Gruppenreferenzen
@@ -571,23 +707,103 @@ function getGroupStandingTeam($db, $groupId, $position) {
 function assignRefereesForFinalMatches($db) {
     // Hole alle Finalrunden-Matches ohne Schiedsrichter, aber mit beiden Teams
     $matches = $db->query("
-        SELECT id, team1_id, team2_id 
+        SELECT id, team1_id, team2_id, start_time, referee_team_id
         FROM matches 
         WHERE phase = 'final' 
           AND team1_id IS NOT NULL 
           AND team2_id IS NOT NULL
-          AND (referee_team_id IS NULL OR referee_team_id = 0)
     ")->fetchAll();
     
     foreach ($matches as $match) {
-        $playingTeams = [$match['team1_id'], $match['team2_id']];
+        // Prüfe, ob der Schiedsrichter ein spielendes Team ist - falls ja, lösche Zuweisung
+        if ($match['referee_team_id'] && 
+            ($match['referee_team_id'] == $match['team1_id'] || 
+             $match['referee_team_id'] == $match['team2_id'])) {
+            $db->prepare("UPDATE matches SET referee_team_id = NULL WHERE id = ?")
+                ->execute([$match['id']]);
+            $match['referee_team_id'] = null; // Für weitere Verarbeitung
+        }
         
-        // Finde Team mit wenigsten Schiedsrichter-Einsätzen, das nicht spielt
+        // Überspringe, wenn bereits ein gültiger Schiedsrichter zugewiesen ist
+        if ($match['referee_team_id']) {
+            continue;
+        }
+        
+        $playingTeams = [$match['team1_id'], $match['team2_id']];
+        $startTime = $match['start_time'];
+        
+        // Finde alle Teams, die zur gleichen Zeit auf anderen Feldern spielen
+        $concurrentMatches = $db->prepare("
+            SELECT team1_id, team2_id 
+            FROM matches 
+            WHERE start_time = ? 
+              AND id != ?
+              AND team1_id IS NOT NULL 
+              AND team2_id IS NOT NULL
+        ");
+        $concurrentMatches->execute([$startTime, $match['id']]);
+        
+        foreach ($concurrentMatches->fetchAll() as $concMatch) {
+            $playingTeams[] = $concMatch['team1_id'];
+            $playingTeams[] = $concMatch['team2_id'];
+        }
+        
+        // Schließe Teams aus, die bereits als Schiedsrichter zur gleichen Zeit zugewiesen sind
+        $alreadyRefereeing = $db->prepare("
+            SELECT referee_team_id 
+            FROM matches 
+            WHERE start_time = ? 
+              AND id != ? 
+              AND referee_team_id IS NOT NULL
+        ");
+        $alreadyRefereeing->execute([$startTime, $match['id']]);
+        
+        foreach ($alreadyRefereeing->fetchAll() as $ref) {
+            $playingTeams[] = $ref['referee_team_id'];
+        }
+        
+        // Finde den nächsten Zeitslot
+        $nextTimeStmt = $db->prepare("
+            SELECT MIN(start_time) as next_time
+            FROM matches
+            WHERE start_time > ?
+        ");
+        $nextTimeStmt->execute([$startTime]);
+        $nextTime = $nextTimeStmt->fetch();
+        
+        if ($nextTime && $nextTime['next_time']) {
+            // Hole alle Teams, die im nächsten Zeitslot spielen
+            $nextSlotMatches = $db->prepare("
+                SELECT team1_id, team2_id 
+                FROM matches 
+                WHERE start_time = ?
+                  AND team1_id IS NOT NULL 
+                  AND team2_id IS NOT NULL
+            ");
+            $nextSlotMatches->execute([$nextTime['next_time']]);
+            
+            foreach ($nextSlotMatches->fetchAll() as $nextMatch) {
+                $playingTeams[] = $nextMatch['team1_id'];
+                $playingTeams[] = $nextMatch['team2_id'];
+            }
+        }
+        
+        $playingTeams = array_unique($playingTeams);
+        
+        // Sicherheitscheck: wenn keine Teams ausgeschlossen werden können, überspringe
+        if (count($playingTeams) == 0) {
+            continue;
+        }
+        
+        // Erstelle Platzhalter für SQL IN-Klausel
+        $placeholders = str_repeat('?,', count($playingTeams) - 1) . '?';
+        
+        // Finde Team mit wenigsten Schiedsrichter-Einsätzen, das nicht zur gleichen Zeit spielt
         $referee = $db->prepare("
             SELECT t.id, COUNT(m.id) as ref_count
             FROM teams t
             LEFT JOIN matches m ON m.referee_team_id = t.id
-            WHERE t.id NOT IN (?, ?)
+            WHERE t.id NOT IN ($placeholders)
             GROUP BY t.id
             ORDER BY ref_count ASC, t.id ASC
             LIMIT 1
@@ -630,6 +846,37 @@ $allTeams = $db->query("SELECT id, name FROM teams ORDER BY name")->fetchAll();
 <div class="alert alert-danger alert-dismissible fade show" role="alert">
     <?= $errorMsg ?>
     <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+</div>
+<?php endif; ?>
+
+<?php if (isset($cascadeWarning)): ?>
+<div class="alert alert-warning" role="alert">
+    <h5 class="alert-heading"><strong>⚠️ ACHTUNG: Abhängige Spiele werden zurückgesetzt!</strong></h5>
+    <p>Das Löschen dieses Ergebnisses betrifft auch folgende Spiele:</p>
+    <ul>
+        <?php foreach ($cascadeWarning['matches'] as $affected): ?>
+            <li>
+                <strong><?= htmlspecialchars($affected['round']) ?></strong>
+                <?php if ($affected['finished'] == 1): ?>
+                    <span class="badge bg-danger">Hat bereits ein Ergebnis (wird gelöscht)</span>
+                <?php else: ?>
+                    <span class="badge bg-warning text-dark">Teams werden zurückgesetzt</span>
+                <?php endif; ?>
+            </li>
+        <?php endforeach; ?>
+    </ul>
+    <hr>
+    <p class="mb-3"><strong>Möchten Sie wirklich fortfahren?</strong></p>
+    <form method="post" class="d-inline">
+        <input type="hidden" name="match_id" value="<?= $cascadeWarning['match_id'] ?>">
+        <input type="hidden" name="confirm_cascade" value="1">
+        <button type="submit" name="delete_result" class="btn btn-danger">
+            Ja, Ergebnis und alle abhängigen Spiele löschen
+        </button>
+        <button type="button" class="btn btn-secondary" onclick="window.location.reload()">
+            Abbrechen
+        </button>
+    </form>
 </div>
 <?php endif; ?>
 
@@ -861,6 +1108,55 @@ document.addEventListener('DOMContentLoaded', function() {
     });
   });
 });
+
+// Timer Remote Control
+async function sendTimerCommand(command) {
+  const btn = document.getElementById('startTimerBtn');
+  const originalText = btn.innerHTML;
+  
+  try {
+    btn.disabled = true;
+    btn.innerHTML = '⏱️ Sende...';
+    
+    // Payload mit optionaler Startzeit
+    const payload = { command: command };
+    if (command === 'start') {
+      const startTimeInput = document.getElementById('remoteTimerStart');
+      if (startTimeInput && startTimeInput.value) {
+        payload.startTime = startTimeInput.value;
+      }
+    }
+    
+    const response = await fetch('Timer/timer_control.php', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify(payload)
+    });
+    
+    const result = await response.json();
+    
+    if (result.success) {
+      btn.innerHTML = '✅ Gesendet!';
+      btn.classList.remove('btn-primary');
+      btn.classList.add('btn-success');
+      
+      setTimeout(() => {
+        btn.innerHTML = originalText;
+        btn.classList.remove('btn-success');
+        btn.classList.add('btn-primary');
+        btn.disabled = false;
+      }, 2000);
+    } else {
+      throw new Error(result.error || 'Unbekannter Fehler');
+    }
+  } catch (error) {
+    alert('Fehler beim Senden des Timer-Befehls: ' + error.message);
+    btn.innerHTML = originalText;
+    btn.disabled = false;
+  }
+}
 </script>
 
 </body>

@@ -1,7 +1,7 @@
 import subprocess
 import sys
 from scheduling import schedule_all_matches
-from referees import assign_group_referees
+from referees import assign_group_referees, assign_final_referees
 
 
 def show_menu():
@@ -24,18 +24,21 @@ def show_menu():
     print("  [3] Schedule - Zeitplan neu berechnen")
     print("      Berechnet Start-Zeiten und Feldzuordnungen neu")
     print()
-    print("  [4] Assign Refs - Schiedsrichter zuweisen")
+    print("  [4] Assign Group Refs - Schiedsrichter fuer Gruppenspiele")
     print("      Weist automatisch Schiedsrichter fuer Gruppenspiele zu")
     print()
-    print("  [5] Rename Team - Team umbenennen")
+    print("  [5] Assign Final Refs - Schiedsrichter fuer Endrunde")
+    print("      Weist Schiedsrichter nur fuer unbespielte Finalrunden-Spiele zu")
+    print()
+    print("  [6] Rename Team - Team umbenennen")
     print("      Interaktives Menue zum Umbenennen von Teams")
     print()
     print("[VALIDIERUNG]")
-    print("  [6] Validate Config - Konfiguration pruefen")
+    print("  [7] Validate Config - Konfiguration pruefen")
     print("      Prueft team_config.json auf Fehler und zeigt Statistiken")
     print()
     print("[NUR ZUM TESTEN]")
-    print("  [7] Fill Results - Testdaten generieren")
+    print("  [8] Fill Results - Testdaten generieren")
     print("      Fuellt alle Gruppenspiele mit Zufallsergebnissen")
     print("      [!] WARNUNG: Ueberschreibt existierende Ergebnisse!")
     print()
@@ -98,27 +101,35 @@ def run_action(action):
         print("[OK] Zeitplan erstellt")
         return True
     
-    elif action == "4" or action == "assign_refs":
-        print("[ASSIGN REFS] Weise Schiedsrichter zu...")
+    elif action == "4" or action == "assign_refs" or action == "assign_group_refs":
+        print("[ASSIGN GROUP REFS] Weise Schiedsrichter fuer Gruppenspiele zu...")
         print("-" * 70)
         assign_group_referees()
         print()
-        print("[OK] Schiedsrichter zugewiesen")
+        print("[OK] Schiedsrichter fuer Gruppenspiele zugewiesen")
         return True
     
-    elif action == "5" or action == "rename_team":
+    elif action == "5" or action == "assign_final_refs":
+        print("[ASSIGN FINAL REFS] Weise Schiedsrichter fuer Endrunde zu...")
+        print("-" * 70)
+        assign_final_referees()
+        print()
+        print("[OK] Schiedsrichter fuer Endrunde zugewiesen")
+        return True
+    
+    elif action == "6" or action == "rename_team":
         print("[RENAME TEAM] Starte Team-Umbenennung...")
         print("-" * 70)
         result = subprocess.run([sys.executable, "rename_team.py"])
         return result.returncode == 0
     
-    elif action == "6" or action == "validate":
+    elif action == "7" or action == "validate":
         print("[VALIDATE] Pruefe Konfiguration...")
         print("-" * 70)
         result = subprocess.run([sys.executable, "validate_config.py"])
         return result.returncode == 0
     
-    elif action == "7" or action == "fill_results":
+    elif action == "8" or action == "fill_results":
         print("[FILL RESULTS] Generiere Testdaten...")
         print("-" * 70)
         result = subprocess.run([sys.executable, "fill_group_results.py"])
@@ -140,7 +151,7 @@ def interactive_mode():
             print("Auf Wiedersehen!")
             break
         
-        if choice in ["1", "2", "3", "4", "5", "6", "7"]:
+        if choice in ["1", "2", "3", "4", "5", "6", "7", "8"]:
             success = run_action(choice)
             
             print()
@@ -154,7 +165,7 @@ def interactive_mode():
             input("\nDruecke Enter um fortzufahren...")
         else:
             print()
-            print("[FEHLER] Ungueltige Eingabe. Bitte waehle 1-7 oder 'q'.")
+            print("[FEHLER] Ungueltige Eingabe. Bitte waehle 1-8 oder 'q'.")
             input("\nDruecke Enter um fortzufahren...")
 
 
@@ -163,7 +174,7 @@ def main():
     # Direkter Modus: python cli.py <action>
     if len(sys.argv) > 1:
         action = sys.argv[1]
-        valid_actions = ["init", "recreate_finals", "schedule", "assign_refs", "fill_results", "rename_team", "validate"]
+        valid_actions = ["init", "recreate_finals", "schedule", "assign_refs", "assign_group_refs", "assign_final_refs", "fill_results", "rename_team", "validate"]
         
         if action in valid_actions:
             success = run_action(action)
