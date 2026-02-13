@@ -38,7 +38,7 @@ CREATE TABLE matches (
 CREATE TABLE sets (
     id INTEGER PRIMARY KEY,
     match_id INTEGER NOT NULL,
-    set_number INTEGER CHECK (set_number IN (1,2)),
+    set_number INTEGER NOT NULL CHECK (set_number > 0),
     team1_points INTEGER NOT NULL,
     team2_points INTEGER NOT NULL
 );

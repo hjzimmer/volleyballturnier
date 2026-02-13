@@ -7,6 +7,7 @@ require 'db.php';
 $configPath = __DIR__ . '/../turnier_config.json';
 $config = json_decode(file_get_contents($configPath), true);
 $requiredPassword = $config['result_entry_password'] ?? 'admin';
+$setsPerMatch = $config['sets_per_match'] ?? 2;
 
 if (isset($_GET['logout'])) {
     unset($_SESSION['result_entry_authenticated']);
@@ -155,11 +156,16 @@ header('Content-Disposition: inline');
         
         .result-grid {
             display: grid;
-            grid-template-columns: auto 1fr 1fr;
             gap: 3px;
             margin: 4px 0;
             align-items: center;
         }
+        
+        .result-grid.sets-1 { grid-template-columns: auto 1fr; }
+        .result-grid.sets-2 { grid-template-columns: auto 1fr 1fr; }
+        .result-grid.sets-3 { grid-template-columns: auto 1fr 1fr 1fr; }
+        .result-grid.sets-4 { grid-template-columns: auto 1fr 1fr 1fr 1fr; }
+        .result-grid.sets-5 { grid-template-columns: auto 1fr 1fr 1fr 1fr 1fr; }
         
         .result-header {
             font-weight: bold;
@@ -207,11 +213,15 @@ header('Content-Disposition: inline');
             height: 16px;
         }
         
-        .print-info {
+        .no-print.print-info {
             text-align: center;
             margin: 20px 0;
             font-size: 12pt;
             font-weight: bold;
+        }
+        .no-print.print-info {
+            right: auto;
+            left: 20px;
         }
         
         @media print {
@@ -318,18 +328,21 @@ for ($page = 0; $page < $pageCount; $page++) {
                 </div>
             </div>
             
-            <div class="result-grid">
+            <div class="result-grid sets-<?= $setsPerMatch ?>">
                 <div></div>
-                <div class="result-header">Satz 1</div>
-                <div class="result-header">Satz 2</div>
+                <?php for ($s = 1; $s <= $setsPerMatch; $s++) { ?>
+                <div class="result-header">Satz <?= $s ?></div>
+                <?php } ?>
                 
                 <div class="result-label">Team 1</div>
+                <?php for ($s = 1; $s <= $setsPerMatch; $s++) { ?>
                 <div class="result-box"></div>
-                <div class="result-box"></div>
+                <?php } ?>
                 
                 <div class="result-label">Team 2</div>
+                <?php for ($s = 1; $s <= $setsPerMatch; $s++) { ?>
                 <div class="result-box"></div>
-                <div class="result-box"></div>
+                <?php } ?>
             </div>
             
             <div class="signature-section">
