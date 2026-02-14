@@ -66,6 +66,7 @@ def assign_group_referees():
         if next_time_result and next_time_result["next_time"]:
             next_time = next_time_result["next_time"]
             
+            #print(f"in prüfung for next matches")
             # Hole alle Teams, die im nächsten Zeitslot spielen
             next_slot_matches = conn.execute("""
                 SELECT team1_id, team2_id 
@@ -78,8 +79,10 @@ def assign_group_referees():
             for next_match in next_slot_matches:
                 if next_match["team1_id"]:
                     playing_teams.add(next_match["team1_id"])
+                    #print(f"team x {next_match['team2_id']} ausgeschlossen")
                 if next_match["team2_id"]:
                     playing_teams.add(next_match["team2_id"])
+                    #print(f"team y {next_match['team2_id']} ausgeschlossen")
         
         # Finde verfügbare Teams aus derselben Gruppe
         available_teams = [

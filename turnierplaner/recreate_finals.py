@@ -7,7 +7,7 @@ from db import get_connection
 from standings import calculate_group_standings
 from finals import create_final_matches
 from scheduling import schedule_all_matches
-from referees import assign_group_referees
+#from referees import assign_group_referees
 import json
 from datetime import datetime
 

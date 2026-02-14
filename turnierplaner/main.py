@@ -13,9 +13,6 @@ if __name__ == "__main__":
     seed_groups()
     generate_interleaved_group_matches()
     
-    # Weise Schiedsrichter für Gruppenphase zu
-    assign_group_referees()
-
     standings_a = calculate_group_standings(1)
     standings_b = calculate_group_standings(2)
 
@@ -28,5 +25,8 @@ if __name__ == "__main__":
     
     # Zeitplan für alle Matches erstellen
     schedule_all_matches("turnier_config.json")
-    
+
+    # Weise Schiedsrichter für Gruppenphase zu (nach Zeitplan machen)
+    assign_group_referees()
+        
     print("Gruppenphase & Endrunde initialisiert.")
