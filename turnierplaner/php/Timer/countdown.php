@@ -501,7 +501,7 @@ function parseTimeValue($value) {
             
             // Aktualisiere Alarm-Zeiten (inkl. garantiertem Alarm)
             updateAlertTimes();
-            addGuaranteedAlarm();
+            //addGuaranteedAlarm();
             
             isRunning = true;
             isPaused = false;
