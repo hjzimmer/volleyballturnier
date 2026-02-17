@@ -293,18 +293,18 @@ function parseTimeValue($value) {
         }
         
         .match-field {
-            font-size: clamp(12px, 8cqh, 18px);
+            font-size: clamp(12px, 8cqh, 32px);
             font-weight: bold;
             color: #4CAF50;
         }
         
         .match-time {
-            font-size: clamp(12px, 8cqh, 18px);
+            font-size: clamp(12px, 8cqh, 32px);
             color: #FF9800;
         }
         
         .match-referee {
-            font-size: clamp(14px, 6cqh, 38px);
+            font-size: clamp(14px, 6cqh, 32px);
             color: #aaa;
             text-align: center;
         }
@@ -856,8 +856,8 @@ function parseTimeValue($value) {
                 }
                 card.innerHTML = `
                     <div class="match-left">
-                        <div class="match-field">Feld ${match.field}</div>
-                        <div class="match-time">${match.time}</div>
+                        <div class="match-field">Feld ${match.field} -> </div>
+                        <div class="match-time">  ${match.time}</div>
                     </div>
                     <div class="match-right">
                         <div class="match-teams">
@@ -894,7 +894,7 @@ function parseTimeValue($value) {
         loadUpcomingMatches();
         
         // Aktualisiere alle 15 Sekunden
-        setInterval(loadUpcomingMatches, 15000);
+    //    setInterval(loadUpcomingMatches, 15000);
         
         // Tastenkürzel
         document.addEventListener('keydown', (e) => {
