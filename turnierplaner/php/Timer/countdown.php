@@ -231,30 +231,32 @@ function parseTimeValue($value) {
         .match-info-section {
             background-color: #1a1a1a;
             padding: 15px;
-            min-height: 20vh;
-            max-height: 25vh;
+            flex: 1;
             border-top: 2px solid #333;
-            overflow-y: auto;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            container-type: size;
         }
         
         .match-info-container {
             display: grid;
             grid-template-columns: repeat(2, 1fr);
             gap: 12px;
-            max-width: 1000px;
-            margin: 0 auto;
+            height: 100%;
+            width: 100%;
         }
         
         .match-card {
             background-color: #2a2a2a;
             border-radius: 6px;
-            padding: 10px;
+            padding: 15px;
             border: 2px solid #444;
             box-shadow: 0 2px 8px rgba(0,0,0,0.3);
-            display: grid;
-            grid-template-columns: auto 1fr;
-            gap: 15px;
-            align-items: center;
+            display: flex;
+            justify-content: center;
+            gap: 10px;
+            min-height: 0;
         }
         
         .match-card.current {
@@ -270,14 +272,16 @@ function parseTimeValue($value) {
         
         .match-left {
             display: flex;
-            flex-direction: column;
-            gap: 4px;
+            justify-content: space-between;
+            align-items: center;
+            gap: 10px;
         }
         
         .match-right {
             display: flex;
             flex-direction: column;
-            gap: 6px;
+            justify-content: center;
+            flex: 1;
         }
         
         .match-header {
@@ -289,29 +293,29 @@ function parseTimeValue($value) {
         }
         
         .match-field {
-            font-size: 14px;
+            font-size: clamp(12px, 8cqh, 18px);
             font-weight: bold;
             color: #4CAF50;
         }
         
         .match-time {
-            font-size: 14px;
+            font-size: clamp(12px, 8cqh, 18px);
             color: #FF9800;
         }
         
         .match-referee {
-            font-size: 14px;
+            font-size: clamp(14px, 6cqh, 38px);
             color: #aaa;
             text-align: center;
         }
         
         .match-teams {
-            font-size: 16px;
+            font-size: clamp(15px, 10cqh, 64px);
             text-align: center;
             display: flex;
             justify-content: center;
             align-items: center;
-            gap: 8px;
+            gap: 15px;
         }
         
         .team-name {
@@ -321,7 +325,7 @@ function parseTimeValue($value) {
         
         .vs-separator {
             color: #888;
-            font-size: 12px;
+            font-size: clamp(18px, 6cqh, 36px);
         }
         
         @media (max-width: 768px) {
@@ -794,7 +798,6 @@ function parseTimeValue($value) {
             try {
                 const response = await fetch('timer_control.php');
                 const data = await response.json();
- console.log('timer_control check ', data);               
                 // Prüfe ob neuer Befehl vorhanden
                 if (data.command && data.timestamp && data.timestamp !== lastCommandTimestamp) {
                     lastCommandTimestamp = data.timestamp;
