@@ -11,5 +11,61 @@
     "start": "2026-04-25T12:15",
     "duration_minutes": 25
   },
-  "result_entry_password": "admin"
+  "result_entry_password": "admin",
+  
+  "phases": [
+    {
+      "id": "vorrunde",
+      "name": "Vorrunde",
+      "groups": [
+        { "id": "G1", "name": "Gruppe A", "teams": [1, 2, 3, 4, 5] },
+        { "id": "G2", "name": "Gruppe B", "teams": [6, 7, 8, 9, 10] }
+      ]
+    },
+    {
+      "id": "zwischenrunde",
+      "name": "Zwischenrunde",
+      "groups": [
+        { "id": "ZG1", "name": "Zwischenrunde ZG1", "teams": [
+          { "type": "group_place", "group": "G1", "place": 1 },
+          { "type": "group_place", "group": "G2", "place": 2 },
+          { "type": "group_place", "group": "G1", "place": 3 }
+        ] },
+        { "id": "ZG2", "name": "Zwischenrunde ZG2", "teams": [
+          { "type": "group_place", "group": "G2", "place": 1 },
+          { "type": "group_place", "group": "G1", "place": 2 },
+          { "type": "group_place", "group": "G2", "place": 3 }
+        ] }
+      ]
+    },
+    {
+      "id": "finale",
+      "name": "Finalrunde",
+      "matches": [
+        { "id": "F1", "name": "Finale", 
+          "team1": { "type": "group_place", "group": "ZG1", "place": 1 },
+          "team2": { "type": "group_place", "group": "ZG2", "place": 1 },
+          "winner_placement": 1, "loser_placement": 2 
+        },
+        { "id": "F2", "name": "Spiel um Platz 3", 
+          "team1": { "type": "group_place", "group": "ZG1", "place": 2 },
+          "team2": { "type": "group_place", "group": "ZG2", "place": 2 },
+          "winner_placement": 3, "loser_placement": 4 
+        },
+        { "id": "F3", "name": "Supercup", 
+          "team1": { "type": "match_winner", "match_id": "F1", "winner": false },
+          "team2": { "type": "match_winner", "match_id": "F1", "winner": true },
+          "winner_placement": -1, "loser_placement": 0 
+        },
+        {
+          "id": "P5",
+          "name": "Platz X aus Zwischenrunde",
+          "team1": null,
+          "team2": null,
+          "winner_placement": { "type": "group_place", "group": "ZG1", "place": 3, "final_placement": 5 },
+          "loser_placement": { "type": "group_place", "group": "ZG2", "place": 3, "final_placement": 6 }
+        }
+      ]
+    }
+  ]
 }

@@ -3,15 +3,15 @@
   "_usage": "Passe die Namen und Gruppen an deine Teams an, dann 'python main.py' ausführen",
 
   "teams": [
-    {"id": 1, "name": "Ostblocker Radebeul", "group": "A"},
-    {"id": 2, "name": "Mit Verspätung", "group": "A"},
-    {"id": 3, "name": "Baller die Waldfee", "group": "A"},
-    {"id": 4, "name": "Chaos Crew", "group": "A"},
-    {"id": 5, "name": "Otti 1", "group": "A"},
-    {"id": 6, "name": "BSV Medingen", "group": "B"},
-    {"id": 7, "name": "Sechs auf dem Feld", "group": "B"},
-    {"id": 8, "name": "Ersatzbank", "group": "B"},
-    {"id": 9, "name": "Team 9", "group": "B"},
-    {"id": 10, "name": "Otti 2", "group": "B"}
+    {"id": 1, "name": "Ostblocker Radebeul"},
+    {"id": 2, "name": "Mit Verspätung"},
+    {"id": 3, "name": "Baller die Waldfee"},
+    {"id": 4, "name": "Chaos Crew"},
+    {"id": 5, "name": "Otti 1"},
+    {"id": 6, "name": "BSV Medingen"},
+    {"id": 7, "name": "Sechs auf dem Feld"},
+    {"id": 8, "name": "Ersatzbank"},
+    {"id": 9, "name": "Team 9"},
+    {"id": 10, "name": "Otti 2"}
   ]
 }

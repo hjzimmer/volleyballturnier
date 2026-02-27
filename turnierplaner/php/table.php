@@ -76,6 +76,31 @@
 <?php
 require 'db.php';
 
+function logge($msg, $farbe = 'black') {
+
+    // Style abhängig von $farbe
+    switch ($farbe) {
+        case 'red':
+            $colorStyle = 'color: red; font-weight: bold;';
+            break;
+        case 'green':
+            $colorStyle = 'color: green; font-weight: bold;';
+            break;
+        case "blue":
+            $colorStyle = 'color: blue; font-weight: bold;';
+            break;
+        default:
+            $colorStyle = 'color: black;';
+    }
+
+    // Sichere JS-String-Repräsentation der Message
+    $jsMsg = json_encode($msg,
+        JSON_PRETTY_PRINT               // Zeilenumbrüche + Einrückung        
+    );
+
+    echo '<script>console.log("%cD:%c " + ' . $jsMsg . ', "' . $colorStyle . '", "color: black;");</script>';
+}
+
 // Funktion zum Auflösen von Team-Referenzen
 function resolveTeam($db, $teamId, $teamRef) {
     if ($teamId) {
@@ -100,59 +125,102 @@ function resolveTeam($db, $teamId, $teamRef) {
                 $stmt = $db->prepare("SELECT $field FROM matches WHERE id = ?");
                 $stmt->execute([$matchKey]);
                 $winnerId = $stmt->fetchColumn();
-                
                 if ($winnerId) {
                     $stmt = $db->prepare("SELECT name FROM teams WHERE id = ?");
                     $stmt->execute([$winnerId]);
                     return $stmt->fetchColumn();
                 }
-            } 
-            // Match-Key-Referenz (neue Methode: W_Halbfinale_1)
-            else {
-                // Konvertiere match_key zu round-Name
+            } else {
+                // Match-Key-Referenz (neue Methode: W_Halbfinale_1)
                 $roundName = str_replace('_', ' ', $matchKey);
-                
                 $stmt = $db->prepare("SELECT $field FROM matches WHERE phase = 'final' AND round = ?");
                 $stmt->execute([$roundName]);
                 $winnerId = $stmt->fetchColumn();
-                
                 if ($winnerId) {
                     $stmt = $db->prepare("SELECT name FROM teams WHERE id = ?");
                     $stmt->execute([$winnerId]);
                     return $stmt->fetchColumn();
                 }
             }
-            
             return $teamRef;
         }
     }
-    
-    return "TBD";
+    return null;
 }
 
 // Funktion zur Berechnung der finalen Platzierungen
 function calculateFinalStandings($db) {
     $placements = [];
-    
-    // 1. Hole Platzierungen aus beendeten Finalspielen
+    // 1. Hole Platzierungen aus allen Finalspielen (beendet und offen)
     $finalMatches = $db->query("
-        SELECT id, winner_id, loser_id, winner_placement, loser_placement, finished
+        SELECT id, winner_id, loser_id, winner_placement, loser_placement, finished, team1_ref, team2_ref, round, group_id
         FROM matches
-        WHERE phase = 'final' AND finished = 1
+        WHERE phase = 'final'
         ORDER BY id
     ")->fetchAll();
     
     foreach ($finalMatches as $match) {
-        if ($match['winner_placement'] !== null && $match['winner_id']) {
-            $placements[$match['winner_id']] = $match['winner_placement'];
+        // Winner
+        if ($match['winner_placement'] !== null) {
+            $placement = $match['winner_placement'];
+            // Prüfe, ob winner_placement ein JSON-Objekt mit final_placement ist
+            if (is_string($placement) && ($placementObj = json_decode($placement, true)) && isset($placementObj['final_placement'])) {
+                $finalPl = $placementObj['final_placement'];
+            } else {
+                $finalPl = $placement;
+            }
+            if ($match['finished'] && $match['winner_id']) {
+                $placements[$match['winner_id']] = [
+                    'placement' => $finalPl,
+                    'round' => $match['round'],
+                    'group_id' => $match['group_id'],
+                    'match_place' => 'winner'
+                ];
+            } else {
+                // Noch nicht beendet: Referenz anzeigen
+                $ref = $match['team1_ref'] ?? null;
+                if ($ref) {
+                    $placements[$ref] = [
+                        'placement' => $finalPl,
+                        'round' => $match['round'],
+                        'group_id' => $match['group_id'],
+                        'match_place' => 'winner'
+                    ];
+                }
+            }
         }
-        if ($match['loser_placement'] !== null && $match['loser_id']) {
-            $placements[$match['loser_id']] = $match['loser_placement'];
+        // Loser
+        if ($match['loser_placement'] !== null) {
+            $placement = $match['loser_placement'];
+            if (is_string($placement) && ($placementObj = json_decode($placement, true)) && isset($placementObj['final_placement'])) {
+                $finalPl = $placementObj['final_placement'];
+            } else {
+                $finalPl = $placement;
+            }
+            if ($match['finished'] && $match['loser_id']) {
+                $placements[$match['loser_id']] = [
+                    'placement' => $finalPl,
+                    'round' => $match['round'],
+                    'group_id' => $match['group_id'],
+                    'match_place' => 'looser'
+                ];
+            } else {
+                $ref = $match['team2_ref'] ?? null;
+                if ($ref) {
+                    $placements[$ref] = [
+                        'placement' => $finalPl,
+                        'round' => $match['round'],
+                        'group_id' => $match['group_id'],
+                        'match_place' => 'looser'
+                    ];
+                }
+            }
         }
     }
+#logge("Placements nach DB Query: " . json_encode($placements), "green");
     
-    // 2. Lade final_config für Gruppenplatzierungen
-    $configPath = __DIR__ . '/../final_config.json';
+    // 2. Lade turnier_config für Gruppenplatzierungen
+    $configPath = __DIR__ . '/../turnier_config.json';
     $groupPlacementRules = [];
     if (file_exists($configPath)) {
         $config = json_decode(file_get_contents($configPath), true);
@@ -184,13 +252,68 @@ function calculateFinalStandings($db) {
         }
     }
     
-    // 4. Erstelle finale Liste mit Team-Namen
+    // 4. Erstelle finale Liste mit Team-Namen oder Referenz
     $result = [];
+
+#logge("DEBUG: Berechnete Platzierungen vor Namensauflösung: " . json_encode($placements), "blue");    
     foreach ($placements as $teamId => $placement) {
-        $stmt = $db->prepare("SELECT name FROM teams WHERE id = ?");
-        $stmt->execute([$teamId]);
-        $teamName = $stmt->fetchColumn();
-        
+        $teamName = null;
+        // Standard: Teamname, falls vorhanden
+        if (is_numeric($teamId)) {
+            $stmt = $db->prepare("SELECT name FROM teams WHERE id = ?");
+            $stmt->execute([$teamId]);
+            $teamName = $stmt->fetchColumn();
+        } else {
+            $decoded = null;
+            if (is_string($teamId)) {
+                $decoded = json_decode($teamId, true);
+            }
+            if (is_array($decoded) && isset($decoded['type'])) {
+                if (($decoded['type'] === 'group_place') || ($decoded['type'] === 'match_winner')) {
+                    $matchId = $decoded['match_id'] ?? '';
+                    $winnerFlag = $placement['match_place'] == "winner" ? true : false;
+                    $matchName = $placement['round'];
+                    $matchLabel = $matchName ? $matchName : ("Match #$matchId");
+                    $label = $winnerFlag ? 'Gewinner' : 'Verlierer';
+                    $teamName = "(noch offen) <span class=\"badge bg-secondary ms-2\">($label $matchLabel)</span>";
+                } else {
+                    $teamName = '(noch offen)';
+                }
+            }
+        }
+
+        // NEU: Zeige für alle Finalplatzierungen (direkte Zahl) ein Badge mit Matchbezug
+        if (is_numeric($placement)) {
+            // Suche das zugehörige Match aus der Config (Finalrunde)
+            $configPath = __DIR__ . '/../turnier_config.json';
+            $config = file_exists($configPath) ? json_decode(file_get_contents($configPath), true) : null;
+            $finalMatchBadge = '';
+            if ($config && isset($config['phases'])) {
+                foreach ($config['phases'] as $phase) {
+                    if (($phase['id'] ?? '') === 'finale' && isset($phase['matches'])) {
+                        foreach ($phase['matches'] as $match) {
+                            // winner_placement
+                            if (isset($match['winner_placement']) && $match['winner_placement'] == $placement) {
+                                $finalMatchBadge = '<span class="badge bg-secondary ms-2">(Gewinner ' . htmlspecialchars($match['name']) . ')</span>';
+                                break 2;
+                            }
+                            // loser_placement
+                            if (isset($match['loser_placement']) && $match['loser_placement'] == $placement) {
+                                $finalMatchBadge = '<span class="badge bg-secondary ms-2">(Verlierer ' . htmlspecialchars($match['name']) . ')</span>';
+                                break 2;
+                            }
+                        }
+                    }
+                }
+            }
+            if ($finalMatchBadge) {
+                if ($teamName && strpos($teamName, 'badge bg-secondary') === false) {
+                    $teamName .= ' ' . $finalMatchBadge;
+                } elseif (!$teamName) {
+                    $teamName = $finalMatchBadge;
+                }
+            }
+        }
         $result[] = [
             'placement' => $placement,
             'team_id' => $teamId,
@@ -200,24 +323,67 @@ function calculateFinalStandings($db) {
     
     // Sortieren nach Platzierung
     usort($result, function($a, $b) {
-        return $a['placement'] - $b['placement'];
+        $pa = is_array($a['placement']) && isset($a['placement']['placement']) ? $a['placement']['placement'] : $a['placement'];
+        $pb = is_array($b['placement']) && isset($b['placement']['placement']) ? $b['placement']['placement'] : $b['placement'];
+        return $pa - $pb;
     });
-    
     return $result;
 }
 
 // Funktion zur Berechnung der Gruppenstatistiken (vereinfacht)
 function calculateGroupStandings($db, $groupId) {
-    $stmt = $db->prepare("
-        SELECT t.id, t.name 
-        FROM teams t
-        JOIN group_teams gt ON gt.team_id = t.id
-        WHERE gt.group_id = ?
-        ORDER BY t.id
-    ");
-    $stmt->execute([$groupId]);
-    $teams = $stmt->fetchAll();
-    
+    // Prüfe, ob Gruppe dynamisch zusammengesetzt ist (group_place)
+    $configPath = __DIR__ . '/../turnier_config.json';
+    $config = file_exists($configPath) ? json_decode(file_get_contents($configPath), true) : null;
+    $teams = [];
+    $foundConfig = false;
+    if ($config && isset($config['phases'])) {
+        foreach ($config['phases'] as $phase) {
+            if (isset($phase['groups'])) {
+                foreach ($phase['groups'] as $groupConf) {
+                    if (isset($groupConf['id']) && $groupConf['id'] == $groupId && isset($groupConf['teams'])) {
+                        $foundConfig = true;
+                        foreach ($groupConf['teams'] as $teamConf) {
+                            if (is_array($teamConf) && isset($teamConf['type']) && $teamConf['type'] == 'group_place') {
+                                // Hole Team anhand Platzierung aus referenzierter Gruppe
+                                $refGroup = $teamConf['group'];
+                                $refPlace = $teamConf['place'];
+                                $refStandings = calculateGroupStandings($db, $refGroup);
+                                $refTeam = isset($refStandings[$refPlace-1]['id']) ? $refStandings[$refPlace-1]['id'] : null;
+                                if ($refTeam) {
+                                    $stmt = $db->prepare("SELECT id, name FROM teams WHERE id = ?");
+                                    $stmt->execute([$refTeam]);
+                                    $team = $stmt->fetch();
+                                    if ($team) {
+                                        $teams[] = $team;
+                                    }
+                                }
+                            } elseif (is_int($teamConf)) {
+                                $stmt = $db->prepare("SELECT id, name FROM teams WHERE id = ?");
+                                $stmt->execute([$teamConf]);
+                                $team = $stmt->fetch();
+                                if ($team) {
+                                    $teams[] = $team;
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+    if (!$foundConfig) {
+        // Fallback: Feste Teams aus group_teams
+        $stmt = $db->prepare("
+            SELECT t.id, t.name 
+            FROM teams t
+            JOIN group_teams gt ON gt.team_id = t.id
+            WHERE gt.group_id = ?
+            ORDER BY t.id
+        ");
+        $stmt->execute([$groupId]);
+        $teams = $stmt->fetchAll();
+    }
     $standings = [];
     foreach ($teams as $team) {
         $standings[$team['id']] = [
@@ -233,7 +399,8 @@ function calculateGroupStandings($db, $groupId) {
             'matches' => []
         ];
     }
-    
+logge("DEBUG: Berechnung der Gruppenplatzierungen für Gruppe $groupId mit Teams: " . json_encode($teams), "blue");
+
     $stmt = $db->prepare("
         SELECT m.id as match_id, m.team1_id, m.team2_id,
                s.set_number, s.team1_points, s.team2_points
@@ -244,7 +411,7 @@ function calculateGroupStandings($db, $groupId) {
     ");
     $stmt->execute([$groupId]);
     $sets = $stmt->fetchAll();
-    
+
     foreach ($sets as $set) {
         $t1 = $set['team1_id'];
         $t2 = $set['team2_id'];
@@ -252,11 +419,43 @@ function calculateGroupStandings($db, $groupId) {
         $p2 = $set['team2_points'];
         
         // Punkte zählen
+        if (!isset($standings[$t1])) {
+            $standings[$t1] = [
+                'id' => $t1,
+                'name' => '',
+                'points' => 0,
+                'sets_won' => 0,
+                'sets_lost' => 0,
+                'sets_draw' => 0,
+                'points_scored' => 0,
+                'points_conceded' => 0,
+                'point_diff' => 0,
+                'matches' => []
+            ];
+        }
+        if (!isset($standings[$t2])) {
+            $standings[$t2] = [
+                'id' => $t2,
+                'name' => '',
+                'points' => 0,
+                'sets_won' => 0,
+                'sets_lost' => 0,
+                'sets_draw' => 0,
+                'points_scored' => 0,
+                'points_conceded' => 0,
+                'point_diff' => 0,
+                'matches' => []
+            ];
+        }
+if ($groupId == "ZG1") {
+#    logge("DEBUG: t1:" . $t1 . ", t2:" . $t2 . ", p1:" . $p1 . ", p2:" . $p2, "red");
+#    logge("DEBUG: standings[t1]:" . json_encode($standings[$t1]), "red");
+#    logge("DEBUG: standings[t2]:" . json_encode($standings[$t2]), "red");
+}        
         $standings[$t1]['points_scored'] += $p1;
         $standings[$t1]['points_conceded'] += $p2;
         $standings[$t2]['points_scored'] += $p2;
         $standings[$t2]['points_conceded'] += $p1;
-        
         if ($p1 > $p2) {
             $standings[$t1]['points'] += 2;
             $standings[$t1]['sets_won']++;
@@ -302,6 +501,9 @@ function calculateGroupStandings($db, $groupId) {
         
         $standings[$t1]['point_diff'] += ($p1 - $p2);
         $standings[$t2]['point_diff'] += ($p2 - $p1);
+if ($groupId == "ZG1") {
+#    logge("DEBUG: Nach Set " . $set['set_number'] . " in Match " . $set['match_id'] . " - Team $t1 vs Team $t2: " . json_encode($standings), "blue");
+}
     }
     
     // Sortieren: 1. Satzpunkte, 2. Gewonnene Sätze, 3. Punktdifferenz
@@ -346,7 +548,7 @@ function calculateGroupStandings($db, $groupId) {
         
         return 0;
     });
-    
+
     return $standings;
 }
 
@@ -433,15 +635,13 @@ $nextMatches = $db->query("
             <div class="card-body">
                 <?php if (count($lastMatches) > 0): ?>
                     <div class="list-group list-group-flush">
-                    <?php foreach ($lastMatches as $match): 
+                    <?php foreach ($lastMatches as $match): ?>
+                        <?php 
                         $team1 = resolveTeam($db, $match['team1_id'], $match['team1_ref']);
                         $team2 = resolveTeam($db, $match['team2_id'], $match['team2_ref']);
                         $field = $match['field_number'] ? 'Feld ' . $match['field_number'] : '-';
-                        
-                        // Hole Satzergebnisse
                         $sets = getSetResults($db, $match['id']);
                         $resultDisplay = "-";
-                        
                         if (count($sets) > 0) {
                             $setScores = [];
                             foreach ($sets as $set) {
@@ -449,8 +649,6 @@ $nextMatches = $db->query("
                             }
                             $resultDisplay = implode(' | ', $setScores);
                         }
-                        
-                        // Bestimme Sieger und Verlierer aus Datenbank
                         $team1Class = '';
                         $team2Class = '';
                         if ($match['winner_id'] == $match['team1_id']) {
@@ -460,7 +658,7 @@ $nextMatches = $db->query("
                             $team2Class = 'text-success fw-bold';
                             $team1Class = 'text-danger';
                         }
-                    ?>
+                        ?>
                         <div class="list-group-item px-0">
                             <div>
                                 <strong>Match #<?= $match['id'] ?></strong>
@@ -476,25 +674,24 @@ $nextMatches = $db->query("
                         </div>
                     <?php endforeach; ?>
                     </div>
-                <?php else: ?>
-                    <p class="text-muted mb-0">Noch keine beendeten Spiele</p>
                 <?php endif; ?>
             </div>
         </div>
     </div>
-    
+
     <div class="col-md-6">
         <div class="card mb-4 border-primary">
             <div class="card-header bg-primary text-white"><strong>⏭️ Nächste Matches</strong></div>
             <div class="card-body">
                 <?php if (count($nextMatches) > 0): ?>
                     <div class="list-group list-group-flush">
-                    <?php foreach ($nextMatches as $match): 
+                    <?php foreach ($nextMatches as $match): ?>
+                        <?php 
                         $team1 = resolveTeam($db, $match['team1_id'], $match['team1_ref']);
                         $team2 = resolveTeam($db, $match['team2_id'], $match['team2_ref']);
                         $time = $match['start_time'] ? date('H:i', strtotime($match['start_time'])) : 'TBD';
                         $field = $match['field_number'] ? 'Feld ' . $match['field_number'] : '-';
-                    ?>
+                        ?>
                         <div class="list-group-item px-0">
                             <div class="d-flex justify-content-between align-items-start">
                                 <div>
@@ -525,81 +722,142 @@ $nextMatches = $db->query("
 
 <div class="card mb-4">
     <div class="card-header">
-        <h3 class="mb-0"><?php if ($allGroupMatchesFinished): ?>🏆 Finale Platzierungen<?php else: ?>📊 Gruppentabellen<?php endif; ?></h3>
+        <h3 class="mb-0">🏆 Platzierungen</h3>
     </div>
     <div class="card-body">
-        <?php if ($allGroupMatchesFinished): ?>
-            <?php 
-            $finalStandings = calculateFinalStandings($db);
-            
-            if (count($finalStandings) > 0):
-            ?>
-                <div class="table-responsive">
-                    <table class="table table-striped table-hover">
-                        <thead class="table-light">
-                            <tr>
-                                <th class="text-center" style="width: 80px;">Platz</th>
-                                <th>Team</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                        <?php 
-                        foreach ($finalStandings as $standing): 
-                            // Medaillen für Top 3
-                            $medal = '';
-                            if ($standing['placement'] == 1) {
-                                $medal = '<span class="fs-4">🥇</span>';
-                            } elseif ($standing['placement'] == 2) {
-                                $medal = '<span class="fs-4">🥈</span>';
-                            } elseif ($standing['placement'] == 3) {
-                                $medal = '<span class="fs-4">🥉</span>';
+        <?php 
+        // Immer finale Platzierungen anzeigen, auch wenn noch nicht alle Gruppenspiele beendet sind
+        $finalStandings = calculateFinalStandings($db);
+#logge("Finale Platzierungen: " . json_encode($finalStandings), "blue");
+
+        // Dummy-Matches (Platzierungszuweisungen ohne echtes Spiel) aus der Config holen
+        $configPath = __DIR__ . '/../turnier_config.json';
+        $config = json_decode(file_get_contents($configPath), true);
+        $dummyMatches = [];
+        foreach ($config['phases'] as $phase) {
+            if (isset($phase['matches'])) {
+                foreach ($phase['matches'] as $match) {
+                    $isDummy = (!isset($match['team1']) && !isset($match['team2'])) || ($match['team1'] === null && $match['team2'] === null);
+                    if ($isDummy) {
+                        $dummyMatches[] = $match;
+                    }
+                }
+            }
+        }
+#logge("Dummy-Matches: " . json_encode($dummyMatches), "blue");
+        ?>
+        <div class="table-responsive">
+            <table class="table table-striped table-hover">
+                <thead class="table-light">
+                    <tr>
+                        <th class="text-center" style="width: 80px;">Platz</th>
+                        <th>Team</th>
+                        <th class="text-center">Quelle</th>
+                    </tr>
+                </thead>
+                <tbody>
+                <?php foreach ($finalStandings as $standing): ?>
+                    <?php 
+                    $placementVal = is_array($standing['placement']) && isset($standing['placement']['placement']) ? $standing['placement']['placement'] : $standing['placement'];
+                    $medal = '';
+                    if ($placementVal == 1) {
+                        $medal = '<span class="fs-4">🥇</span>';
+                    } elseif ($placementVal == 2) {
+                        $medal = '<span class="fs-4">🥈</span>';
+                    } elseif ($placementVal == 3) {
+                        $medal = '<span class="fs-4">🥉</span>';
+                    }
+                    $rowClass = '';
+                    if ($standing['placement'] == 1) {
+                        $rowClass = 'table-warning';
+                    } elseif ($standing['placement'] == 2) {
+                        $rowClass = 'table-light';
+                    } elseif ($standing['placement'] == 3) {
+                        $rowClass = 'table-info';
+                    }
+                    ?>
+                    <tr class="<?= $rowClass ?>">
+                        <td class="text-center fw-bold fs-5">
+                            <?= $medal ?> <?= $placementVal ?>.
+                        </td>
+                        <td class="fs-5">
+                            <?php if ($standing['team_name']): ?>
+                                <?php if (strpos($standing['team_name'], 'badge bg-secondary') !== false): ?>
+                                    <?= $standing['team_name'] ?>
+                                <?php else: ?>
+                                    <?= htmlspecialchars($standing['team_name']) ?>
+                                <?php endif; ?>
+                            <?php else: ?>
+                                <span class="text-muted">(noch offen)</span>
+                            <?php endif; ?>
+                        </td>
+                        <td class="text-center">Finalrunde</td>
+                    </tr>
+                <?php endforeach; ?>
+                <?php foreach ($dummyMatches as $dummy):
+                    // Zeige die Platzierungszuweisungen aus Dummy-Matches
+                    foreach ([['key'=>'winner_placement','label'=>'Sieger'],['key'=>'loser_placement','label'=>'Verlierer']] as $entry) {
+                        $placement = $dummy[$entry['key']] ?? null;
+                        if (is_array($placement) && isset($placement['final_placement'])) {
+                            $group = $placement['group'] ?? '';
+                            $place = $placement['place'] ?? '';
+                            $finalPl = $placement['final_placement'];
+                            // Teamname aus Gruppenplatzierung holen
+                            $teamName = '';
+                            if ($group && $place) {
+                                $standings = calculateGroupStandings($db, $group);
+                                if (isset($standings[$place-1]['name'])) {
+                                    $teamName = $standings[$place-1]['name'];
+                                } else {
+                                    $teamName = $group . ' Platz ' . $place;
+                                }
+                            } else {
+                                $teamName = '(noch offen)';
                             }
-                            
-                            // Hervorhebungen für Top 4
-                            $rowClass = '';
-                            if ($standing['placement'] == 1) {
-                                $rowClass = 'table-warning';
-                            } elseif ($standing['placement'] == 2) {
-                                $rowClass = 'table-light';
-                            } elseif ($standing['placement'] == 3) {
-                                $rowClass = 'table-info';
-                            }
-                        ?>
-                            <tr class="<?= $rowClass ?>">
-                                <td class="text-center fw-bold fs-5">
-                                    <?= $medal ?> <?= $standing['placement'] ?>.
-                                </td>
-                                <td class="fs-5"><?= htmlspecialchars($standing['team_name']) ?></td>
+                            ?>
+                            <tr class="table-secondary">
+                                <td class="text-center fw-bold fs-5"> <?= $finalPl ?>.</td>
+                                <td class="fs-5"><?= htmlspecialchars($teamName) ?> <span class="badge bg-secondary ms-2">(<?= $group ?> Platz <?= $place ?>)</span></td>
+                                <td class="text-center">Gruppenplatzierung</td>
                             </tr>
-                        <?php endforeach; ?>
-                        </tbody>
-                    </table>
-                </div>
-                
-                <div class="alert alert-info mt-3">
-                    <small>
-                        <strong>Hinweis:</strong> Die Platzierungen werden automatisch aktualisiert, sobald die Finalspiele beendet sind. 
-                        Gruppenplatzierungen verwenden die Ränge aus der Vorrunde kombiniert mit den konfigurierten Platzierungen 
-                        aus <code>final_config.json</code>.
-                    </small>
-                </div>
-            <?php else: ?>
-                <div class="alert alert-secondary">
-                    <p class="mb-0">
-                        <strong>Noch keine Platzierungen verfügbar.</strong><br>
-                        Die finale Tabelle wird angezeigt, sobald die ersten Ergebnisse eingetragen wurden.
-                    </p>
-                </div>
-            <?php endif; ?>
-        <?php else: ?>
+                            <?php
+                        }
+                    }
+                endforeach; ?>
+                </tbody>
+            </table>
+        </div>
+        <div class="alert alert-info mt-3">
+            <small>
+                <strong>Hinweis:</strong> Die Platzierungen werden immer angezeigt. Falls Teams/Ergebnisse noch nicht feststehen, werden Referenzen angezeigt.
+            </small>
+        </div>
+    </div>
+        <div class="card-header"><strong>📊 Gruppentabellen</strong></div>
+        <div class="card-body">
             <?php 
-            // Zeige Gruppentabellen
-            $groups = $db->query("SELECT id, name FROM groups ORDER BY id")->fetchAll();
+            // Phasen dynamisch aus turnier_config.json laden
+            $configPath = __DIR__ . '/../turnier_config.json';
+            $configJson = file_get_contents($configPath);
+            $config = json_decode($configJson, true);
+            $phases = [];
+            if (isset($config['phases'])) {
+                foreach ($config['phases'] as $phase) {
+                    if (isset($phase['id']) && isset($phase['name'])) {
+                        $phases[$phase['id']] = $phase['name'];
+                    }
+                }
+            }
+            $groups = $db->query("SELECT id, name, phase_name FROM groups ORDER BY id")->fetchAll();
+            foreach ($phases as $phaseKey => $phaseLabel): 
             ?>
-            <div class="row">
+                <h4 class="mt-4"><?= $phaseLabel ?></h4>
+                <div class="row">
                 <?php foreach ($groups as $group): 
-                    $standings = calculateGroupStandings($db, $group['id']);
-                ?>
+                    $standings = calculateGroupStandings($db, $group['id'], $phaseKey);
+                    if (count($standings) == 0) continue;
+                    if ($group['phase_name'] != $phaseLabel) continue;
+                    ?>
                     <div class="col-md-6">
                         <h5>Gruppe <?= $group['name'] ?></h5>
                         <div class="table-responsive">
@@ -619,8 +877,7 @@ $nextMatches = $db->query("
                                 <tbody>
                                 <?php 
                                 $rank = 1;
-                                foreach ($standings as $standing): 
-                                ?>
+                                foreach ($standings as $standing): ?>
                                     <tr>
                                         <td class="text-center fw-bold"><?= $rank ?></td>
                                         <td><?= htmlspecialchars($standing['name']) ?></td>
@@ -635,16 +892,15 @@ $nextMatches = $db->query("
                                     </tr>
                                 <?php 
                                     $rank++;
-                                endforeach; 
-                                ?>
+                                endforeach; ?>
                                 </tbody>
                             </table>
                         </div>
                     </div>
                 <?php endforeach; ?>
-            </div>
-        <?php endif; ?>
-    </div>
+                </div>
+            <?php endforeach; ?>
+        </div>
 </div>
 
 </body>

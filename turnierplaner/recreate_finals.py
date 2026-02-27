@@ -61,7 +61,7 @@ def recreate_finals_only():
     
     # 3. Erstelle Finalrunden-Matches neu
     print("[3/5] Erstelle Finalrunden-Matches neu...")
-    create_final_matches("final_config.json", group_tables)
+    create_final_matches("turnier_config.json", group_tables)
     
     # 4. Plane Zeitplan für alle Matches neu
     print("[4/5] Plane Zeitplan neu...")
@@ -70,20 +70,24 @@ def recreate_finals_only():
     # 5. Weise Schiedsrichter für Endrunde zu
     print("[5/5] Weise Schiedsrichter für Endrunde zu...")
     
-    # Hole alle Finalrunden-Matches mit beiden Teams
+    # Hole alle Finalrunden-Matches, auch mit Platzhaltern
     final_matches = conn.execute("""
         SELECT id, team1_id, team2_id 
         FROM matches 
         WHERE phase = 'final' 
-          AND team1_id IS NOT NULL 
-          AND team2_id IS NOT NULL
           AND (referee_team_id IS NULL OR referee_team_id = 0)
     """).fetchall()
-    
+
     assigned_count = 0
     for match in final_matches:
+        # Wenn Teams noch nicht feststehen (Platzhalter), setze Schiedsrichter auf NULL (TBD)
+        if match['team1_id'] == -1 or match['team2_id'] == -1:
+            conn.execute(
+                "UPDATE matches SET referee_team_id = NULL WHERE id = ?",
+                (match['id'],)
+            )
+            continue
         playing_teams = [match['team1_id'], match['team2_id']]
-        
         # Finde Team mit wenigsten Schiedsrichter-Einsätzen, das nicht spielt
         referee = conn.execute("""
             SELECT t.id, COUNT(m.id) as ref_count
@@ -94,7 +98,6 @@ def recreate_finals_only():
             ORDER BY ref_count ASC, t.id ASC
             LIMIT 1
         """, playing_teams).fetchone()
-        
         if referee:
             conn.execute(
                 "UPDATE matches SET referee_team_id = ? WHERE id = ?",

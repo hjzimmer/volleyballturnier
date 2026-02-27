@@ -15,9 +15,11 @@ def assign_group_referees():
         ORDER BY start_time, id
     """).fetchall()
     
-    # Hole alle Teams pro Gruppe
+    # Hole alle Teams pro Gruppe (mit echten Gruppen-IDs)
     teams_by_group = {}
-    for group_id in [1, 2]:
+    group_rows = conn.execute("SELECT id FROM groups").fetchall()
+    for group_row in group_rows:
+        group_id = group_row["id"] if isinstance(group_row, dict) else group_row[0]
         teams = conn.execute(
             "SELECT team_id FROM group_teams WHERE group_id = ? ORDER BY team_id",
             (group_id,)
@@ -84,24 +86,29 @@ def assign_group_referees():
                     playing_teams.add(next_match["team2_id"])
                     #print(f"team y {next_match['team2_id']} ausgeschlossen")
         
-        # Finde verfügbare Teams aus derselben Gruppe
-        available_teams = [
-            team for team in teams_by_group[group_id] 
-            if team not in playing_teams
-        ]
-        
-        # Wähle das Team mit den wenigsten Schiedsrichter-Einsätzen
-        if available_teams:
-            referee = min(available_teams, key=lambda t: referee_count[t])
-            referee_count[referee] += 1
-            
+        # Wenn Teams noch nicht feststehen (Platzhalter), setze Schiedsrichter auf NULL (TBD)
+        if match["team1_id"] == -1 or match["team2_id"] == -1:
             conn.execute(
-                "UPDATE matches SET referee_team_id = ? WHERE id = ?",
-                (referee, match["id"])
+                "UPDATE matches SET referee_team_id = NULL WHERE id = ?",
+                (match["id"],)
             )
-            print(f"Match {match['id']}: Team {referee} als Schiedsrichter zugewiesen")
+            print(f"Match {match['id']}: Schiedsrichter auf TBD gesetzt (Teams noch nicht fest)")
         else:
-            print(f"Match {match['id']}: Kein verfügbares Schiedsrichter-Team gefunden")
+            # Wähle verfügbares Team
+            available_teams = [
+                team for team in teams_by_group[group_id] 
+                if team not in playing_teams
+            ]
+            if available_teams:
+                referee = min(available_teams, key=lambda t: referee_count[t])
+                referee_count[referee] += 1
+                conn.execute(
+                    "UPDATE matches SET referee_team_id = ? WHERE id = ?",
+                    (referee, match["id"])
+                )
+                print(f"Match {match['id']}: Team {referee} als Schiedsrichter zugewiesen")
+            else:
+                print(f"Match {match['id']}: Kein verfügbares Schiedsrichter-Team gefunden")
     
     conn.commit()
     conn.close()
@@ -219,8 +226,8 @@ def assign_final_referees():
         FROM matches 
         WHERE phase = 'final' 
         AND finished = 0
-        AND team1_id IS NOT NULL 
-        AND team2_id IS NOT NULL
+        AND team1_id IS NOT -1 
+        AND team2_id IS NOT -1
         ORDER BY start_time, id
     """).fetchall()
     

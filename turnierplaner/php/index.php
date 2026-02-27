@@ -23,55 +23,37 @@ require 'db.php';
 
 // Funktion zum Auflösen von Team-Referenzen
 function resolveTeam($db, $teamId, $teamRef) {
-    if ($teamId) {
+    if ($teamId && $teamId != -1) {
         $stmt = $db->prepare("SELECT name FROM teams WHERE id = ?");
         $stmt->execute([$teamId]);
         return $stmt->fetchColumn();
     }
-    
-    if ($teamRef) {
-        // Gruppenplatzierung
-        if (strpos($teamRef, '_') !== false && in_array($teamRef[0], ['A', 'B'])) {
-            return $teamRef; // Zeige Referenz, bis Gruppe gespielt ist
-        }
-        
-        // Gewinner/Verlierer-Referenz (W_xxx oder L_xxx)
-        if (strpos($teamRef, 'W_') === 0 || strpos($teamRef, 'L_') === 0) {
-            $matchKey = substr($teamRef, 2);
-            $field = strpos($teamRef, 'W_') === 0 ? 'winner_id' : 'loser_id';
-            
-            // Prüfe ob numerische Referenz (alte Methode: W_21)
-            if (is_numeric($matchKey)) {
-                $stmt = $db->prepare("SELECT $field FROM matches WHERE id = ?");
-                $stmt->execute([$matchKey]);
-                $winnerId = $stmt->fetchColumn();
-                
-                if ($winnerId) {
-                    $stmt = $db->prepare("SELECT name FROM teams WHERE id = ?");
-                    $stmt->execute([$winnerId]);
-                    return $stmt->fetchColumn();
-                }
-            } 
-            // Match-Key-Referenz (neue Methode: W_Halbfinale_1)
-            else {
-                // Konvertiere match_key zu round-Name
-                $roundName = str_replace('_', ' ', $matchKey);
-                
-                $stmt = $db->prepare("SELECT $field FROM matches WHERE phase = 'final' AND round = ?");
-                $stmt->execute([$roundName]);
-                $winnerId = $stmt->fetchColumn();
-                
-                if ($winnerId) {
-                    $stmt = $db->prepare("SELECT name FROM teams WHERE id = ?");
-                    $stmt->execute([$winnerId]);
-                    return $stmt->fetchColumn();
-                }
+
+    if ($teamId === -1 && $teamRef) {
+        $refObj = json_decode($teamRef, true);
+        if (is_array($refObj) && isset($refObj['type'])) {
+            if ($refObj['type'] === 'group_place') {
+                $g = htmlspecialchars($refObj['group']);
+                $p = (int)$refObj['place'];
+                $stmt = $db->prepare("SELECT name FROM groups WHERE id = ?");
+                $stmt->execute([$g]);
+                $groupName = $stmt->fetchColumn();
+                if (!$groupName) $groupName = $g;
+                return $p . ". " . htmlspecialchars($groupName);
             }
-            
-            return $teamRef; // Noch nicht gespielt
+            if ($refObj['type'] === 'match_winner') {
+                $mid = $refObj['match_id'];
+                $stmt = $db->prepare("SELECT round FROM matches WHERE group_id = ?");
+                $stmt->execute([$mid]);
+                $matchName = $stmt->fetchColumn();
+                if (!$matchName) $matchName = "Match " . htmlspecialchars($mid);
+                else $matchName = htmlspecialchars($matchName);
+                return $refObj['winner'] ? "Sieger von $matchName" : "Verlierer von $matchName";
+            }
         }
+        return htmlspecialchars($teamRef);
     }
-    
+
     return "TBD";
 }
 
@@ -245,22 +227,27 @@ foreach ($matchesByTime as $time => $timeData):
 <?php
     }
     
-    // Bestimme Gruppe für diese Zeitzeile (vom ersten Match)
-    $groupName = null;
-    if (isset($timeData[1]) && $timeData[1]['group_name']) {
-        $groupName = $timeData[1]['group_name'];
-    } elseif (isset($timeData[2]) && $timeData[2]['group_name']) {
-        $groupName = $timeData[2]['group_name'];
+    // Bestimme Phasen-Namen für diese Zeitzeile aus der groups-Tabelle
+    $phaseName = null;
+    if (isset($timeData[1]) && isset($timeData[1]['group_id'])) {
+        $stmt = $db->prepare("SELECT phase_name FROM groups WHERE id = ?");
+        $stmt->execute([$timeData[1]['group_id']]);
+        $phaseName = $stmt->fetchColumn();
+    } elseif (isset($timeData[2]) && isset($timeData[2]['group_id'])) {
+        $stmt = $db->prepare("SELECT phase_name FROM groups WHERE id = ?");
+        $stmt->execute([$timeData[2]['group_id']]);
+        $phaseName = $stmt->fetchColumn();
     }
+    if (!$phaseName) $phaseName = htmlspecialchars($currentPhase);
 ?>
 <tr>
   <td class="time-header text-center">
     <?= $time ?>
-    <?php if ($groupName): ?>
-      <div class="mt-1">
-        <span class="badge bg-primary" style="font-size: 0.75rem;">Gruppe <?= htmlspecialchars($groupName) ?></span>
-      </div>
-    <?php endif; ?>
+    <div class="mt-1">
+        <span class="badge bg-primary" style="font-size: 0.75rem;">
+            <?= $phaseName ?>
+        </span>
+    </div>
   </td>
   
   <?php for ($field = 1; $field <= 2; $field++): ?>
@@ -339,20 +326,13 @@ foreach ($matchesByTime as $time => $timeData):
 <?php
     }
     
-    // Bestimme Gruppe
-    $groupName = null;
-    if (isset($timeData[1]) && $timeData[1]['group_name']) {
-        $groupName = $timeData[1]['group_name'];
-    } elseif (isset($timeData[2]) && $timeData[2]['group_name']) {
-        $groupName = $timeData[2]['group_name'];
-    }
+    // Bestimme Phasen-Namen für diese Zeitzeile
+    $phaseName = $currentPhase === 'group' ? 'Gruppenphase' : ($currentPhase === 'final' ? 'Finalrunde' : htmlspecialchars($currentPhase));
 ?>
 <div class="mobile-time-block">
     <div class="mobile-time-header">
         <?= $time ?>
-        <?php if ($groupName): ?>
-            <span class="badge bg-light text-dark ms-2" style="font-size: 0.75rem;">Gruppe <?= htmlspecialchars($groupName) ?></span>
-        <?php endif; ?>
+        <span class="badge bg-light text-dark ms-2" style="font-size: 0.75rem;"><?= $phaseName ?></span>
     </div>
     
     <?php for ($field = 1; $field <= 2; $field++): ?>

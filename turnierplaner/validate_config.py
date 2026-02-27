@@ -1,3 +1,4 @@
+from validate_turnier_config import validate_turnier_config
 """
 Validiert team_config.json für flexible Team-Anzahlen
 Prüft auf häufige Fehler bevor das Turnier initialisiert wird
@@ -49,25 +50,8 @@ def validate_team_config(config_path='team_config.json'):
     else:
         print(f"   [OK] Gerade Anzahl Teams")
     
-    # 2. Prüfe Gruppen
-    group_a = [t for t in teams if t.get('group') == 'A']
-    group_b = [t for t in teams if t.get('group') == 'B']
-    other_groups = [t for t in teams if t.get('group') not in ['A', 'B']]
-    
-    print(f"\n[INFO] Gruppenzuordnung:")
-    print(f"   Gruppe A: {len(group_a)} Teams")
-    print(f"   Gruppe B: {len(group_b)} Teams")
-    
-    if other_groups:
-        errors.append(f"{len(other_groups)} Teams haben ungültige Gruppe (nur 'A' oder 'B' erlaubt)")
-        for t in other_groups[:3]:  # Zeige max 3 Beispiele
-            print(f"      [FEHLER] Team {t.get('id')}: Gruppe '{t.get('group')}'")
-    
-    if len(group_a) != len(group_b):
-        errors.append(f"Gruppen haben unterschiedliche Größen (A: {len(group_a)}, B: {len(group_b)})")
-        errors.append(f"   -> Beide Gruppen müssen gleich viele Teams haben!")
-    else:
-        print(f"   [OK] Gruppen sind ausgeglichen")
+    # 2. Gruppenprüfung entfällt, Teams haben keine Gruppenzuordnung mehr
+    print(f"\n[INFO] Gruppenzuordnung: (nicht mehr in team_config, wird dynamisch zugewiesen)")
     
     # 3. Prüfe IDs
     ids = [t.get('id') for t in teams]
@@ -99,24 +83,9 @@ def validate_team_config(config_path='team_config.json'):
     if not warnings and not duplicate_names and not empty_names:
         print(f"   [OK] Alle Namen gesetzt")
     
-    # 5. Berechne Statistiken
-    teams_per_group = len(group_a)
-    if teams_per_group > 0:
-        matches_per_group = teams_per_group * (teams_per_group - 1) // 2
-        total_group_matches = matches_per_group * 2
-        
-        print(f"\n[INFO] Turnier-Statistiken:")
-        print(f"   - Teams pro Gruppe: {teams_per_group}")
-        print(f"   - Matches pro Gruppe: {matches_per_group}")
-        print(f"   - Gesamt Gruppenmatches: {total_group_matches}")
-        print(f"   - Final-Matches beginnen bei ID: {total_group_matches + 1}")
-        
-        # Zeitberechnung (grob)
-        # Annahme: 15 Min pro Match, 2 Felder parallel
-        estimated_minutes = (total_group_matches / 2) * 15
-        hours = int(estimated_minutes // 60)
-        minutes = int(estimated_minutes % 60)
-        print(f"   - Geschätzte Gruppenphase-Dauer: ~{hours}h {minutes}min (bei 2 Feldern)")
+    # 5. Einfache Statistiken (keine Gruppen mehr)
+    print(f"\n[INFO] Turnier-Statistiken:")
+    print(f"   - Gesamtzahl Teams: {total_teams}")
     
     # 6. Ausgabe Zusammenfassung
     print()
@@ -193,9 +162,9 @@ if __name__ == "__main__":
     if args.show_teams:
         show_team_list(args.config)
     
-    is_valid = validate_team_config(args.config)
-    
-    if not is_valid:
+    is_valid_team = validate_team_config(args.config)
+    is_valid_turnier = validate_turnier_config("turnier_config.json")
+    if not is_valid_team or not is_valid_turnier:
         sys.exit(1)  # Exit mit Fehlercode
     else:
         sys.exit(0)  # Erfolg

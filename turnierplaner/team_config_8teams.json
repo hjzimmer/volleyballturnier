@@ -3,13 +3,13 @@
   "_usage": "Kopiere diese Datei zu team_config.json und passe die Namen an",
   
   "teams": [
-    {"id": 1, "name": "Team Alpha", "group": "A"},
-    {"id": 2, "name": "Team Beta", "group": "A"},
-    {"id": 3, "name": "Team Gamma", "group": "A"},
-    {"id": 4, "name": "Team Delta", "group": "A"},
-    {"id": 5, "name": "Team Epsilon", "group": "B"},
-    {"id": 6, "name": "Team Zeta", "group": "B"},
-    {"id": 7, "name": "Team Eta", "group": "B"},
-    {"id": 8, "name": "Team Theta", "group": "B"}
+    {"id": 1, "name": "Team Alpha"},
+    {"id": 2, "name": "Team Beta"},
+    {"id": 3, "name": "Team Gamma"},
+    {"id": 4, "name": "Team Delta"},
+    {"id": 5, "name": "Team Epsilon"},
+    {"id": 6, "name": "Team Zeta"},
+    {"id": 7, "name": "Team Eta"},
+    {"id": 8, "name": "Team Theta"}
   ]
 }

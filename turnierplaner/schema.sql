@@ -6,8 +6,9 @@ CREATE TABLE teams (
 );
 
 CREATE TABLE groups (
-    id INTEGER PRIMARY KEY,
-    name TEXT NOT NULL
+    id TEXT PRIMARY KEY,
+    name TEXT NOT NULL,
+    phase_name TEXT
 );
 
 CREATE TABLE group_teams (
@@ -19,7 +20,7 @@ CREATE TABLE group_teams (
 CREATE TABLE matches (
     id INTEGER PRIMARY KEY,
     phase TEXT NOT NULL,
-    group_id INTEGER,
+    group_id TEXT,
     round TEXT NOT NULL,
     team1_id INTEGER,
     team2_id INTEGER,

@@ -94,17 +94,49 @@ function getSetResults($db, $matchId) {
 }
 
 // Funktion zur Berechnung der Gruppenstatistiken
-function calculateGroupStandings($db, $groupId) {
-    // Hole alle Teams der Gruppe
+function calculateGroupStandings($db, $groupId, $phase = 'group') {
+    // Hole alle Teams, die in dieser Gruppenphase tatsächlich spielen
     $stmt = $db->prepare("
-        SELECT t.id, t.name 
+        SELECT DISTINCT t.id, t.name
         FROM teams t
-        JOIN group_teams gt ON gt.team_id = t.id
-        WHERE gt.group_id = ?
+        JOIN (
+            SELECT team1_id AS team_id FROM matches WHERE group_id = ? AND phase = ?
+            UNION
+            SELECT team2_id AS team_id FROM matches WHERE group_id = ? AND phase = ?
+        ) mt ON t.id = mt.team_id
         ORDER BY t.id
     ");
-    $stmt->execute([$groupId]);
+    $stmt->execute([$groupId, $phase, $groupId, $phase]);
     $teams = $stmt->fetchAll();
+
+    // Initialisiere Statistiken für jedes Team
+    $standings = [];
+    foreach ($teams as $team) {
+        $standings[$team['id']] = [
+            'id' => $team['id'],
+            'name' => $team['name'],
+            'points' => 0,
+            'sets_won' => 0,
+            'sets_lost' => 0,
+            'sets_draw' => 0,
+            'points_scored' => 0,
+            'points_conceded' => 0,
+            'point_diff' => 0,
+            'matches' => []
+        ];
+    }
+
+    // Hole alle Sätze der beendeten Gruppenspiele dieser Phase
+    $stmt = $db->prepare("
+        SELECT m.id as match_id, m.team1_id, m.team2_id,
+               s.set_number, s.team1_points, s.team2_points
+        FROM matches m
+        JOIN sets s ON s.match_id = m.id
+        WHERE m.group_id = ? AND m.phase = ? AND m.finished = 1
+        ORDER BY m.id, s.set_number
+    ");
+    $stmt->execute([$groupId, $phase]);
+    $sets = $stmt->fetchAll();
     
     // Initialisiere Statistiken für jedes Team
     $standings = [];
@@ -250,18 +282,37 @@ function calculateGroupStandings($db, $groupId) {
 }
 
 // Hole alle Gruppen
-$groups = $db->query("SELECT id, name FROM groups ORDER BY id");
 
-foreach ($groups as $group):
+// Hole alle Gruppenphasen, sortiert nach Reihenfolge (z.B. group, zwischenrunde, platzierung, final)
+$phases = $db->query("SELECT DISTINCT phase FROM matches ORDER BY CASE phase WHEN 'group' THEN 1 WHEN 'zwischenrunde' THEN 2 WHEN 'platzierung' THEN 3 WHEN 'final' THEN 4 ELSE 99 END")->fetchAll(PDO::FETCH_COLUMN);
+
+foreach ($phases as $phase):
+    // Hole alle Gruppen dieser Phase
+    $groups = $db->prepare("SELECT id, name FROM groups WHERE id IN (SELECT DISTINCT group_id FROM matches WHERE phase = ?) ORDER BY id");
+    $groups->execute([$phase]);
+    $groups = $groups->fetchAll();
+    if (count($groups) === 0) continue;
 ?>
+<h2 class="mt-4 mb-3">
+    <?php
+        // Schöne Anzeige für Phasenname
+        switch ($phase) {
+            case 'group': echo 'Gruppenphase'; break;
+            case 'zwischenrunde': echo 'Zwischenrunde'; break;
+            case 'platzierung': echo 'Platzierungsrunde'; break;
+            case 'final': echo 'Finalrunde'; break;
+            default: echo ucfirst($phase);
+        }
+    ?>
+</h2>
+<?php foreach ($groups as $group): ?>
 <div class="card mb-4">
     <div class="card-header">
         <h3 class="mb-0">Gruppe <?= $group['name'] ?></h3>
     </div>
     <div class="card-body">
         <?php
-        $standings = calculateGroupStandings($db, $group['id']);
-        
+        $standings = calculateGroupStandings($db, $group['id'], $phase);
         // Prüfen, ob schon Spiele stattgefunden haben
         $hasResults = false;
         foreach ($standings as $standing) {
@@ -271,7 +322,6 @@ foreach ($groups as $group):
             }
         }
         ?>
-        
         <div class="row">
             <!-- Linke Spalte: Spiele der Gruppe -->
             <div class="col-md-6 col-12">
@@ -293,17 +343,15 @@ foreach ($groups as $group):
                         FROM matches m
                         JOIN teams t1 ON t1.id = m.team1_id
                         JOIN teams t2 ON t2.id = m.team2_id
-                        WHERE m.group_id = ? AND m.phase = 'group'
+                        WHERE m.group_id = ? AND m.phase = ?
                         ORDER BY m.start_time, m.id
                     ");
-                    $matchesStmt->execute([$group['id']]);
+                    $matchesStmt->execute([$group['id'], $phase]);
                     $matches = $matchesStmt->fetchAll();
-                    
                     if (count($matches) > 0):
                         foreach ($matches as $match):
                             $time = $match['start_time'] ? date('H:i', strtotime($match['start_time'])) : '-';
                             $field = $match['field_number'] ? 'Feld ' . $match['field_number'] : '-';
-                            
                             // Hole Satzergebnisse wenn Match beendet
                             $resultDisplay = "-";
                             if ($match["finished"]) {
@@ -334,7 +382,6 @@ foreach ($groups as $group):
                     </tbody>
                 </table>
             </div>
-            
             <!-- Rechte Spalte: Tabelle -->
             <div class="col-md-6 col-12">
                 <h5>Tabelle</h5>
@@ -376,7 +423,6 @@ foreach ($groups as $group):
                         </tbody>
                     </table>
                 </div>
-                
                 <?php if (!$hasResults): ?>
                     <div class="alert alert-secondary">
                         <small><em>Die Rangliste wird aktualisiert, sobald Ergebnisse eingetragen wurden.</em></small>
@@ -386,6 +432,7 @@ foreach ($groups as $group):
         </div>
     </div>
 </div>
+<?php endforeach; ?>
 <?php endforeach; ?>
 
 </body>

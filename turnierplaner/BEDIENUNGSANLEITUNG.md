@@ -74,7 +74,7 @@ Zeigt:
 # In main.py:
 from finals import create_final_matches
 
-create_final_matches("final_config.json", group_tables)
+create_final_matches("turnier_config.json", group_tables)
 ```
 
 **Anzahl Matches nach Team-Anzahl:**
@@ -111,7 +111,7 @@ Das System verwendet **dynamische Match-IDs** statt fester IDs. Dies ermöglicht
 ```
 ❌ Problem: Bei 12 Teams würden Finals bei ID 31 starten, nicht 21!
 
-**Neue Methode (final_config.json):**
+**Neue Methode (turnier_config.json):**
 ```json
 {
   "matches": [
@@ -239,7 +239,7 @@ python cli.py init
 3. Erstellt Gruppen A & B
 4. Generiert alle Gruppenspiele
 5. Weist Schiedsrichter zu
-6. Erstellt Endrunden-Matches aus `final_config.json`
+6. Erstellt Endrunden-Matches aus `turnier_config.json`
 7. Plant Zeiten und Felder ein aus `turnier_config.json`
 
 **⚠️ WARNUNG:**
@@ -705,7 +705,7 @@ python cli.py init
 
 ---
 
-### `final_config.json`
+### `turnier_config.json`
 ```json
 {
   "matches": [
@@ -793,7 +793,7 @@ Datenbankschema mit allen Tabellen. Wird von `db.py` verwendet.
      - `sets_per_match`: 1 oder 2 Sätze pro Match
      - `tournament_start`: Startzeit
      - Spielfeld-/Pausen-Zeiten
-   - `final_config.json` prüfen (bereits optimal konfiguriert)
+  - `turnier_config.json` prüfen (bereits optimal konfiguriert)
 
 3. **Datenbank initialisieren:**
    
