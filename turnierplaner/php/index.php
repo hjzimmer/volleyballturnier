@@ -20,42 +20,7 @@
 
 <?php
 require 'db.php';
-
-// Funktion zum Auflösen von Team-Referenzen
-function resolveTeam($db, $teamId, $teamRef) {
-    if ($teamId && $teamId != -1) {
-        $stmt = $db->prepare("SELECT name FROM teams WHERE id = ?");
-        $stmt->execute([$teamId]);
-        return $stmt->fetchColumn();
-    }
-
-    if ($teamId === -1 && $teamRef) {
-        $refObj = json_decode($teamRef, true);
-        if (is_array($refObj) && isset($refObj['type'])) {
-            if ($refObj['type'] === 'group_place') {
-                $g = htmlspecialchars($refObj['group']);
-                $p = (int)$refObj['place'];
-                $stmt = $db->prepare("SELECT name FROM groups WHERE id = ?");
-                $stmt->execute([$g]);
-                $groupName = $stmt->fetchColumn();
-                if (!$groupName) $groupName = $g;
-                return $p . ". " . htmlspecialchars($groupName);
-            }
-            if ($refObj['type'] === 'match_winner') {
-                $mid = $refObj['match_id'];
-                $stmt = $db->prepare("SELECT round FROM matches WHERE group_id = ?");
-                $stmt->execute([$mid]);
-                $matchName = $stmt->fetchColumn();
-                if (!$matchName) $matchName = "Match " . htmlspecialchars($mid);
-                else $matchName = htmlspecialchars($matchName);
-                return $refObj['winner'] ? "Sieger von $matchName" : "Verlierer von $matchName";
-            }
-        }
-        return htmlspecialchars($teamRef);
-    }
-
-    return "TBD";
-}
+require_once 'helpFunctions.php';
 
 // Funktion zum Holen der Satzergebnisse
 function getSetResults($db, $matchId) {
@@ -238,7 +203,10 @@ foreach ($matchesByTime as $time => $timeData):
         $stmt->execute([$timeData[2]['group_id']]);
         $phaseName = $stmt->fetchColumn();
     }
-    if (!$phaseName) $phaseName = htmlspecialchars($currentPhase);
+    if (!$phaseName) {
+        $phaseName = htmlspecialchars($currentPhase);
+        $phaseName = htmlspecialchars('Finalerunde');
+    }
 ?>
 <tr>
   <td class="time-header text-center">
@@ -254,9 +222,9 @@ foreach ($matchesByTime as $time => $timeData):
     <td>
       <?php if (isset($timeData[$field])): 
           $m = $timeData[$field];
-          $team1 = resolveTeam($db, $m["team1_id"], $m["team1_ref"]);
-          $team2 = resolveTeam($db, $m["team2_id"], $m["team2_ref"]);
-          
+          $team1 = resolveTeamToName($db, $m["team1_id"], $m["team1_ref"]);
+          $team2 = resolveTeamToName($db, $m["team2_id"], $m["team2_ref"]);
+
           // Bestimme Gewinner/Verlierer für Farbmarkierung
           $isTeam1Winner = ($m['finished'] && $m['winner_id'] == $m['team1_id']);
           $isTeam2Winner = ($m['finished'] && $m['winner_id'] == $m['team2_id']);
@@ -338,8 +306,8 @@ foreach ($matchesByTime as $time => $timeData):
     <?php for ($field = 1; $field <= 2; $field++): ?>
         <?php if (isset($timeData[$field])): 
             $m = $timeData[$field];
-            $team1 = resolveTeam($db, $m["team1_id"], $m["team1_ref"]);
-            $team2 = resolveTeam($db, $m["team2_id"], $m["team2_ref"]);
+            $team1 = resolveTeamToName($db, $m["team1_id"], $m["team1_ref"]);
+            $team2 = resolveTeamToName($db, $m["team2_id"], $m["team2_ref"]);
             
             $isTeam1Winner = ($m['finished'] && $m['winner_id'] == $m['team1_id']);
             $isTeam2Winner = ($m['finished'] && $m['winner_id'] == $m['team2_id']);

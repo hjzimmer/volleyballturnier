@@ -80,6 +80,7 @@
 
 <?php
 require 'db.php';
+require_once 'helpFunctions.php';
 
 // Funktion zum Holen der Satzergebnisse
 function getSetResults($db, $matchId) {
@@ -92,196 +93,6 @@ function getSetResults($db, $matchId) {
     $stmt->execute([$matchId]);
     return $stmt->fetchAll();
 }
-
-// Funktion zur Berechnung der Gruppenstatistiken
-function calculateGroupStandings($db, $groupId, $phase = 'group') {
-    // Hole alle Teams, die in dieser Gruppenphase tatsächlich spielen
-    $stmt = $db->prepare("
-        SELECT DISTINCT t.id, t.name
-        FROM teams t
-        JOIN (
-            SELECT team1_id AS team_id FROM matches WHERE group_id = ? AND phase = ?
-            UNION
-            SELECT team2_id AS team_id FROM matches WHERE group_id = ? AND phase = ?
-        ) mt ON t.id = mt.team_id
-        ORDER BY t.id
-    ");
-    $stmt->execute([$groupId, $phase, $groupId, $phase]);
-    $teams = $stmt->fetchAll();
-
-    // Initialisiere Statistiken für jedes Team
-    $standings = [];
-    foreach ($teams as $team) {
-        $standings[$team['id']] = [
-            'id' => $team['id'],
-            'name' => $team['name'],
-            'points' => 0,
-            'sets_won' => 0,
-            'sets_lost' => 0,
-            'sets_draw' => 0,
-            'points_scored' => 0,
-            'points_conceded' => 0,
-            'point_diff' => 0,
-            'matches' => []
-        ];
-    }
-
-    // Hole alle Sätze der beendeten Gruppenspiele dieser Phase
-    $stmt = $db->prepare("
-        SELECT m.id as match_id, m.team1_id, m.team2_id,
-               s.set_number, s.team1_points, s.team2_points
-        FROM matches m
-        JOIN sets s ON s.match_id = m.id
-        WHERE m.group_id = ? AND m.phase = ? AND m.finished = 1
-        ORDER BY m.id, s.set_number
-    ");
-    $stmt->execute([$groupId, $phase]);
-    $sets = $stmt->fetchAll();
-    
-    // Initialisiere Statistiken für jedes Team
-    $standings = [];
-    foreach ($teams as $team) {
-        $standings[$team['id']] = [
-            'id' => $team['id'],
-            'name' => $team['name'],
-            'points' => 0,           // Satzpunkte (2 für Sieg, 1 für Unentschieden, 0 für Niederlage)
-            'sets_won' => 0,         // Gewonnene Sätze
-            'sets_lost' => 0,        // Verlorene Sätze
-            'sets_draw' => 0,        // Unentschiedene Sätze
-            'points_scored' => 0,    // Erzielte Punkte
-            'points_conceded' => 0,  // Abgegebene Punkte
-            'point_diff' => 0,       // Punktdifferenz
-            'matches' => []          // Für direkten Vergleich
-        ];
-    }
-    
-    // Hole alle Sätze der beendeten Gruppenspiele
-    $stmt = $db->prepare("
-        SELECT m.id as match_id, m.team1_id, m.team2_id,
-               s.set_number, s.team1_points, s.team2_points
-        FROM matches m
-        JOIN sets s ON s.match_id = m.id
-        WHERE m.group_id = ? AND m.phase = 'group' AND m.finished = 1
-        ORDER BY m.id, s.set_number
-    ");
-    $stmt->execute([$groupId]);
-    $sets = $stmt->fetchAll();
-    
-    foreach ($sets as $set) {
-        $t1 = $set['team1_id'];
-        $t2 = $set['team2_id'];
-        $p1 = $set['team1_points'];
-        $p2 = $set['team2_points'];
-        
-        // Punkte und Statistiken aktualisieren
-        $standings[$t1]['points_scored'] += $p1;
-        $standings[$t1]['points_conceded'] += $p2;
-        $standings[$t2]['points_scored'] += $p2;
-        $standings[$t2]['points_conceded'] += $p1;
-        
-        // Satzpunkte vergeben
-        if ($p1 > $p2) {
-            $standings[$t1]['points'] += 2;
-            $standings[$t1]['sets_won']++;
-            $standings[$t2]['sets_lost']++;
-            
-            // Für direkten Vergleich
-            if (!isset($standings[$t1]['matches'][$t2])) {
-                $standings[$t1]['matches'][$t2] = ['points' => 0, 'sets_won' => 0, 'point_diff' => 0];
-            }
-            if (!isset($standings[$t2]['matches'][$t1])) {
-                $standings[$t2]['matches'][$t1] = ['points' => 0, 'sets_won' => 0, 'point_diff' => 0];
-            }
-            $standings[$t1]['matches'][$t2]['points'] += 2;
-            $standings[$t1]['matches'][$t2]['sets_won']++;
-            $standings[$t1]['matches'][$t2]['point_diff'] += ($p1 - $p2);
-            $standings[$t2]['matches'][$t1]['point_diff'] -= ($p1 - $p2);
-        } elseif ($p2 > $p1) {
-            $standings[$t2]['points'] += 2;
-            $standings[$t2]['sets_won']++;
-            $standings[$t1]['sets_lost']++;
-            
-            // Für direkten Vergleich
-            if (!isset($standings[$t1]['matches'][$t2])) {
-                $standings[$t1]['matches'][$t2] = ['points' => 0, 'sets_won' => 0, 'point_diff' => 0];
-            }
-            if (!isset($standings[$t2]['matches'][$t1])) {
-                $standings[$t2]['matches'][$t1] = ['points' => 0, 'sets_won' => 0, 'point_diff' => 0];
-            }
-            $standings[$t2]['matches'][$t1]['points'] += 2;
-            $standings[$t2]['matches'][$t1]['sets_won']++;
-            $standings[$t2]['matches'][$t1]['point_diff'] += ($p2 - $p1);
-            $standings[$t1]['matches'][$t2]['point_diff'] -= ($p2 - $p1);
-        } else {
-            $standings[$t1]['points'] += 1;
-            $standings[$t2]['points'] += 1;
-            $standings[$t1]['sets_draw']++;
-            $standings[$t2]['sets_draw']++;
-            
-            // Für direkten Vergleich
-            if (!isset($standings[$t1]['matches'][$t2])) {
-                $standings[$t1]['matches'][$t2] = ['points' => 0, 'sets_won' => 0, 'point_diff' => 0];
-            }
-            if (!isset($standings[$t2]['matches'][$t1])) {
-                $standings[$t2]['matches'][$t1] = ['points' => 0, 'sets_won' => 0, 'point_diff' => 0];
-            }
-            $standings[$t1]['matches'][$t2]['points'] += 1;
-            $standings[$t2]['matches'][$t1]['points'] += 1;
-        }
-    }
-    
-    // Punktdifferenz berechnen
-    foreach ($standings as $id => $data) {
-        $standings[$id]['point_diff'] = $data['points_scored'] - $data['points_conceded'];
-    }
-    
-    // Sortieren: 1. Satzpunkte, 2. Gewonnene Sätze, 3. Punktdifferenz
-    usort($standings, function($a, $b) {
-        // 1. Nach Satzpunkten
-        if ($a['points'] != $b['points']) {
-            return $b['points'] - $a['points'];
-        }
-        
-        // 2. Nach gewonnenen Sätzen
-        if ($a['sets_won'] != $b['sets_won']) {
-            return $b['sets_won'] - $a['sets_won'];
-        }
-        
-        // 3. Nach Punktdifferenz
-        if ($a['point_diff'] != $b['point_diff']) {
-            return $b['point_diff'] - $a['point_diff'];
-        }
-        
-        // 4. Direkter Vergleich (nur wenn sie gegeneinander gespielt haben)
-        if (isset($a['matches'][$b['id']]) && isset($b['matches'][$a['id']])) {
-            $directA = $a['matches'][$b['id']]['points'];
-            $directB = $b['matches'][$a['id']]['points'];
-            if ($directA != $directB) {
-                return $directB - $directA;
-            }
-            
-            // Bei gleichem Punktestand: Gewonnene Sätze im direkten Vergleich
-            $directSetsA = $a['matches'][$b['id']]['sets_won'];
-            $directSetsB = $b['matches'][$a['id']]['sets_won'];
-            if ($directSetsA != $directSetsB) {
-                return $directSetsB - $directSetsA;
-            }
-            
-            // Bei gleichen gewonnenen Sätzen: Punktdifferenz im direkten Vergleich
-            $directDiffA = $a['matches'][$b['id']]['point_diff'];
-            $directDiffB = $b['matches'][$a['id']]['point_diff'];
-            if ($directDiffA != $directDiffB) {
-                return $directDiffB - $directDiffA;
-            }
-        }
-        
-        return 0;
-    });
-    
-    return $standings;
-}
-
-// Hole alle Gruppen
 
 // Hole alle Gruppenphasen, sortiert nach Reihenfolge (z.B. group, zwischenrunde, platzierung, final)
 $phases = $db->query("SELECT DISTINCT phase FROM matches ORDER BY CASE phase WHEN 'group' THEN 1 WHEN 'zwischenrunde' THEN 2 WHEN 'platzierung' THEN 3 WHEN 'final' THEN 4 ELSE 99 END")->fetchAll(PDO::FETCH_COLUMN);
@@ -313,10 +124,11 @@ foreach ($phases as $phase):
     <div class="card-body">
         <?php
         $standings = calculateGroupStandings($db, $group['id'], $phase);
+
         // Prüfen, ob schon Spiele stattgefunden haben
         $hasResults = false;
         foreach ($standings as $standing) {
-            if ($standing['points'] > 0 || $standing['sets_won'] > 0 || $standing['sets_lost'] > 0 || $standing['sets_draw'] > 0) {
+            if ($standing['matchCnt'] > 0 ) {
                 $hasResults = true;
                 break;
             }
@@ -391,6 +203,7 @@ foreach ($phases as $phase):
                             <tr>
                                 <th class="text-center" style="min-width: 35px;">Pl.</th>
                                 <th style="min-width: 80px;">Team</th>
+                                <th class="text-center" title="Spiele" style="min-width: 35px;">Sp</th>
                                 <th class="text-center" title="Satzpunkte" style="min-width: 35px;">Pkt</th>
                                 <th class="text-center d-none d-sm-table-cell" title="Gewonnene Sätze" style="min-width: 35px;">S+</th>
                                 <th class="text-center d-none d-md-table-cell" title="Unentschiedene Sätze" style="min-width: 35px;">S=</th>
@@ -407,6 +220,7 @@ foreach ($phases as $phase):
                             <tr>
                                 <td class="text-center fw-bold"><?= $rank ?></td>
                                 <td><?= htmlspecialchars($standing['name']) ?></td>
+                                <td class="text-center fw-bold"><?= $standing['matchCnt'] ?></td>
                                 <td class="text-center fw-bold"><?= $standing['points'] ?></td>
                                 <td class="text-center d-none d-sm-table-cell"><?= $standing['sets_won'] ?></td>
                                 <td class="text-center d-none d-md-table-cell"><?= $standing['sets_draw'] ?></td>

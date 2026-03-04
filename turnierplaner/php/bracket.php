@@ -270,61 +270,7 @@
 
 <?php
 require 'db.php';
-
-// Funktion zum Auflösen von Team-Referenzen
-function resolveTeamName($db, $teamId, $teamRef) {
-    if ($teamId) {
-        $stmt = $db->prepare("SELECT name FROM teams WHERE id = ?");
-        $stmt->execute([$teamId]);
-        return $stmt->fetchColumn();
-    }
-    
-    if ($teamRef) {
-        // Gruppenplatzierung
-        if (strpos($teamRef, '_') !== false && in_array($teamRef[0], ['A', 'B'])) {
-            return $teamRef;
-        }
-        
-        // Gewinner/Verlierer-Referenz (W_xxx oder L_xxx)
-        if (strpos($teamRef, 'W_') === 0 || strpos($teamRef, 'L_') === 0) {
-            $matchKey = substr($teamRef, 2);
-            $field = strpos($teamRef, 'W_') === 0 ? 'winner_id' : 'loser_id';
-            
-            // Prüfe ob numerische Referenz (alte Methode: W_21)
-            if (is_numeric($matchKey)) {
-                $stmt = $db->prepare("SELECT $field FROM matches WHERE id = ?");
-                $stmt->execute([$matchKey]);
-                $winnerId = $stmt->fetchColumn();
-                
-                if ($winnerId) {
-                    $stmt = $db->prepare("SELECT name FROM teams WHERE id = ?");
-                    $stmt->execute([$winnerId]);
-                    return $stmt->fetchColumn();
-                }
-            } 
-            // Match-Key-Referenz (neue Methode: W_Halbfinale_1)
-            else {
-                // Konvertiere match_key zu round-Name
-                $roundName = str_replace('_', ' ', $matchKey);
-                
-                $stmt = $db->prepare("SELECT $field FROM matches WHERE phase = 'final' AND round = ?");
-                $stmt->execute([$roundName]);
-                $winnerId = $stmt->fetchColumn();
-                
-                if ($winnerId) {
-                    $stmt = $db->prepare("SELECT name FROM teams WHERE id = ?");
-                    $stmt->execute([$winnerId]);
-                    return $stmt->fetchColumn();
-                }
-            }
-            
-            // Wenn nicht aufgelöst werden kann, zeige Referenz
-            return $teamRef;
-        }
-    }
-    
-    return "TBD";
-}
+require_once 'helpFunctions.php';
 
 // Funktion zum Holen der Satzergebnisse
 function getMatchSets($db, $matchId) {
@@ -412,8 +358,8 @@ if (!empty($matchesByType['Finale'])) {
 
 // Funktion zum Rendern eines Matches
 function renderMatch($db, $match) {
-    $team1Name = resolveTeamName($db, $match['team1_id'], $match['team1_ref']);
-    $team2Name = resolveTeamName($db, $match['team2_id'], $match['team2_ref']);
+    $team1Name = resolveTeamToName($db, $match['team1_id'], $match['team1_ref']);
+    $team2Name = resolveTeamToName($db, $match['team2_id'], $match['team2_ref']);
     $sets = getMatchSets($db, $match['id']);
     $isWinner1 = $match['finished'] && $match['winner_id'] == $match['team1_id'];
     $isWinner2 = $match['finished'] && $match['winner_id'] == $match['team2_id'];

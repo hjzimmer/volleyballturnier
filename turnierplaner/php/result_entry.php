@@ -1,4 +1,6 @@
 <?php
+require_once 'helpFunctions.php';
+
 session_start();
 
 // Lade Passwort aus turnier_config.json
@@ -26,7 +28,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['password'])) {
     }
 }
 
-// Prüfe ob authentifiziert
+// PrÃ¼fe ob authentifiziert
 if (!isset($_SESSION['result_entry_authenticated']) || $_SESSION['result_entry_authenticated'] !== true) {
     // Zeige Login-Formular
     ?>
@@ -44,7 +46,7 @@ if (!isset($_SESSION['result_entry_authenticated']) || $_SESSION['result_entry_a
         <div class="col-md-4">
             <div class="card">
                 <div class="card-body">
-                    <h2 class="card-title text-center mb-4">🔒 Ergebniseingabe</h2>
+                    <h2 class="card-title text-center mb-4">ðŸ”’ Ergebniseingabe</h2>
                     
                     <?php if (isset($loginError)): ?>
                         <div class="alert alert-danger">Falsches Passwort!</div>
@@ -66,7 +68,7 @@ if (!isset($_SESSION['result_entry_authenticated']) || $_SESSION['result_entry_a
             </div>
             
             <div class="mt-3 text-center">
-                <a href="index.php" class="btn btn-link">← Zurück zum Spielplan</a>
+                <a href="index.php" class="btn btn-link">â† ZurÃ¼ck zum Spielplan</a>
             </div>
         </div>
     </div>
@@ -216,24 +218,6 @@ require 'db.php';
 
 <?php
 
-// Funktion zum Auflösen von Team-Referenzen
-function resolveTeam($db, $teamId, $teamRef) {
-    if ($teamId) {
-        $stmt = $db->prepare("SELECT name FROM teams WHERE id = ?");
-        $stmt->execute([$teamId]);
-        return $stmt->fetchColumn();
-    }
-    if ($teamRef) {
-        if (strpos($teamRef, '_') !== false && in_array($teamRef[0], ['A', 'B'])) {
-            return $teamRef;
-        }
-        if (strpos($teamRef, 'W_') === 0 || strpos($teamRef, 'L_') === 0) {
-            return $teamRef;
-        }
-    }
-    return "TBD";
-}
-
 // Ergebnis speichern
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['save_result'])) {
     $matchId = $_POST['match_id'];
@@ -265,8 +249,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['save_result'])) {
     $match->execute([$matchId]);
     $matchData = $match->fetch();
     
-    // Bestimme ob Playoff-Match (alle Endrunden-Matches)
-    $isPlayoff = ($matchData['phase'] === 'final');
+    // Bestimme ob Endrunden-Match (alle Endrunden-Matches)
+    $isFinalMatch = ($matchData['phase'] === 'final');
     
     // Berechne Gesamtpunkte für beide Teams
     $totalTeam1 = 0;
@@ -277,7 +261,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['save_result'])) {
     }
     
     // Validierung: In der Endrunde keine Punktgleichheit erlauben
-    if ($isPlayoff) {
+    if ($isFinalMatch) {
         if ($totalTeam1 === $totalTeam2) {
             $errorMsg = "❌ Fehler: In Endrunden-Matches ist Punktgleichheit nicht erlaubt! (Team 1: $totalTeam1 Punkte, Team 2: $totalTeam2 Punkte). Bitte korrigiere das Ergebnis.";
             goto skip_save;
@@ -293,7 +277,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['save_result'])) {
         $loserId = $matchData['team1_id'];
     } else {
         // 1:1 Satzstand
-        if ($isPlayoff) {
+        if ($isFinalMatch) {
             // In der Endrunde entscheidet die Punktdifferenz
             if ($totalTeam1 > $totalTeam2) {
                 $winnerId = $matchData['team1_id'];
@@ -322,16 +306,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['save_result'])) {
     $db->prepare("UPDATE matches SET finished = 1, winner_id = ?, loser_id = ? WHERE id = ?")
         ->execute([$winnerId, $loserId, $matchId]);
     
-    // Aktualisiere nachfolgende Finalrunden-Matches
-    updateFinalMatches($db, $matchId);
-    
-    // Wenn es ein Gruppenspiel war, aktualisiere alle Finalspiele mit Gruppenreferenzen
-    if ($matchData['phase'] === 'group') {
-        updateGroupPositionsInFinals($db);
-    }
+    // Aktualisiere nachfolgende Matches, Referees für die Gruppen werden auch upgedated
+    updateMatchesWithResolvedTeams($db, $matchId);
     
     // Weise Schiedsrichter für neu aufgelöste Finalrunden-Matches zu
-    assignRefereesForFinalMatches($db);
+    assignRefereesForMatches($db);
     
     $successMsg = "Ergebnis erfolgreich gespeichert!";
     
@@ -343,38 +322,40 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['delete_result'])) {
     $matchId = $_POST['match_id'];
     
     // Hole Phase und Round des Matches
-    $match = $db->query("SELECT phase, round FROM matches WHERE id = $matchId")->fetch();
+    $match = $db->query("SELECT phase, round, group_id FROM matches WHERE id = $matchId")->fetch();
     $isGroupMatch = ($match && $match['phase'] === 'group');
-    $isFinalMatch = ($match && $match['phase'] === 'final');
+    $groupId = ($match && $match['group_id']);;
     
     // Bei Finalrunden-Spielen: Prüfe ob abhängige Matches betroffen sind
     $dependentMatches = [];
-    if ($isFinalMatch && !isset($_POST['confirm_cascade'])) {
-        $dependentMatches = checkDependentFinalMatches($db, $matchId, $match['round']);
+    if (!isset($_POST['confirm_cascade'])) {
+        $dependentMatches = checkDependentMatches($db, $match['group_id']);
     }
     
+    // Spiele mit teamIds>=0
+    $depMatches = array_values(array_map(function($entry) {return $entry['match'];}, $dependentMatches));
+    $validMatches = array_filter($depMatches, function($x) { 
+        if ((isset($x['team1_id']) && $x['team1_id'] >= 0) ||  
+            (isset($x['team2_id']) && $x['team2_id'] >= 0)) {
+            return true;
+        }
+        return false;
+    });
     // Wenn abhängige Matches vorhanden sind und noch nicht bestätigt wurde
-    if (!empty($dependentMatches) && !isset($_POST['confirm_cascade'])) {
+    if ($validMatches !== [null] && !isset($_POST['confirm_cascade'])) {
         // Zeige Warnung mit Bestätigungsformular
         $cascadeWarning = [
             'match_id' => $matchId,
-            'matches' => $dependentMatches
+            'matches' => $validMatches
         ];
     } else {
         // Führe das Löschen durch
         $warnings = [];
-        if ($isFinalMatch) {
-            $warnings = resetDependentFinalMatches($db, $matchId, $match['round']);
-        }
-        
+        $warnings = resetDependentMatches($db, $matchId, $match['group_id']);
+
         $db->prepare("DELETE FROM sets WHERE match_id = ?")->execute([$matchId]);
         $db->prepare("UPDATE matches SET finished = 0, winner_id = NULL, loser_id = NULL WHERE id = ?")
             ->execute([$matchId]);
-        
-        // Wenn es ein Gruppenspiel war, aktualisiere alle Finalspiele mit Gruppenreferenzen
-        if ($isGroupMatch) {
-            updateGroupPositionsInFinals($db);
-        }
         
         $successMsg = "Ergebnis erfolgreich gelöscht!";
         if (!empty($warnings)) {
@@ -383,23 +364,41 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['delete_result'])) {
     }
 }
 
-// Funktion zum Aktualisieren von Finalrunden-Matches
-function updateFinalMatches($db, $completedMatchId) {
-    // Hole Informationen über das abgeschlossene Match
-    $completedMatch = $db->query("SELECT round FROM matches WHERE id = $completedMatchId")->fetch();
-    if (!$completedMatch) return;
+function getUniqueGroupIds($matches) {
+    $ids = array_map(function($entry) {
+        return isset($entry['group_id']) ? $entry['group_id'] : null;
+    }, $matches);
+    $ids = array_filter($ids, function($v) { return $v !== null; });
+    return array_values(array_unique($ids));
+}
+
+// Funktion zum Aktualisieren von Dependent-Matches
+function updateMatchesWithResolvedTeams($db, $completedMatchId) {
+    // check ob die Phase für diese group_id abgeschlossen ist
+    $groups = $db->query("SELECT group_id FROM matches WHERE id = $completedMatchId")->fetch();
+    $changedGroup = $groups['group_id'];
+   
+    $stmt = $db->prepare("SELECT id FROM matches WHERE group_id = ? AND finished = 0");
+    $stmt->execute([$changedGroup]);
+    $openMatches = $stmt->fetch();
+    if ($openMatches) {
+        // Es gibt noch offene Matches in der Gruppe, daher keine Updates in den Finalrunden durchführen
+        return;
+    }
+    // Prüfe ob abhängige Matches betroffen sind
+    $dependentMatches = [];
+    $foundDependencies = checkDependentMatches($db, $changedGroup);
+    $dependentMatches = array_values(array_map(function($entry) { return $entry['match']; }, $foundDependencies));
     
-    // Finde alle Matches, die auf dieses Match als Referenz warten
-    $stmt = $db->query("SELECT id, team1_ref, team2_ref, team1_id, team2_id, phase FROM matches WHERE phase = 'final'");
-    
-    foreach ($stmt as $match) {
+    foreach ($dependentMatches as $match) {
         $updated = false;
         $newTeam1Id = $match['team1_id'];
         $newTeam2Id = $match['team2_id'];
         
         // Prüfe team1_ref
-        if ($match['team1_ref'] && !$match['team1_id']) {
-            $teamId = resolveTeamReference($db, $match['team1_ref'], $completedMatchId, $completedMatch['round']);
+        if ($match['team1_ref'] && (!$match['team1_id'] || $match['team1_id'] == -1)) {
+            // db, ref=ref des zu ändernden Matches, completedMatchId=ID beendetes Match, group_id=gruppe die beendet wurde
+            $teamId = resolveTeamReference($db, $match['team1_ref'], $completedMatchId, $changedGroup);
             if ($teamId) {
                 $newTeam1Id = $teamId;
                 $updated = true;
@@ -407,312 +406,213 @@ function updateFinalMatches($db, $completedMatchId) {
         }
         
         // Prüfe team2_ref
-        if ($match['team2_ref'] && !$match['team2_id']) {
-            $teamId = resolveTeamReference($db, $match['team2_ref'], $completedMatchId, $completedMatch['round']);
+        if ($match['team2_ref'] && (!$match['team2_id'] || $match['team2_id'] == -1)) {
+            $teamId = resolveTeamReference($db, $match['team2_ref'], $completedMatchId, $changedGroup);
             if ($teamId) {
                 $newTeam2Id = $teamId;
                 $updated = true;
             }
         }
-        
         if ($updated) {
             $db->prepare("UPDATE matches SET team1_id = ?, team2_id = ? WHERE id = ?")
                 ->execute([$newTeam1Id, $newTeam2Id, $match['id']]);
         }
     }
+    if (!empty($dependentMatches)) {
+        $uniqueGroupIds = getUniqueGroupIds($dependentMatches);
+        foreach ($uniqueGroupIds as $groupId) {
+            assignRefereesForMatches($db, $groupId);
+        }
+    }
+    
+}
+
+function checkForOneMatchWithRef($db, $match, $affectedMatches, $groupId) {
+    $matchIsDependent = false;
+    foreach ([['ref' => $match['team1_ref'], 'teamId' => $match['team1_id'], 'finished' => $match['finished'], 'side' => 1], ['ref' => $match['team2_ref'], 'teamId' => $match['team2_id'], 'finished' => $match['finished'], 'side' => 2]] as $refInfo) {
+        if (!$refInfo['ref']) continue;
+        $refInfoArr = json_decode($refInfo['ref'], true); // klappt
+        if($refInfoArr['type'] && $refInfoArr['type'] === "group_place"  && ($refInfoArr['group'] === $groupId)) {
+            // in refInfo ist ein Match, welches sich auf das aktuelle bezieht, egal ob finished oder nicht
+            $matchIsDependent = true;
+            break;
+        }
+        if($refInfoArr['type'] && $refInfoArr['type'] === "match_winner"  && ($refInfoArr['match_id'] === $groupId)) {
+            // in refInfo ist ein Match, welches sich auf das aktuelle bezieht, egal ob finished oder nicht
+            $matchIsDependent = true;
+            break;
+        }
+    }
+    if ($matchIsDependent) {
+        $affectedMatches[] = [
+            'match' => $match,
+            'checked' => NULL
+        ];
+    }
+
+    return $affectedMatches;
+}
+
+function deleteDuplicatesInAffected($affected) {
+    $unique = [];
+    $seen = [];
+    foreach ($affected as $entry) {
+        // Erzeuge einen eindeutigen Hash für das Match (z. B. anhand der ID)
+        $matchId = is_array($entry['match']) && isset($entry['match']['id']) ? $entry['match']['id'] : md5(serialize($entry['match']));
+        if (!isset($seen[$matchId])) {
+            $unique[] = $entry;
+            $seen[$matchId] = true;
+        }
+}
+    return $unique;
 }
 
 // Funktion zum Prüfen abhängiger Finalrunden-Matches (ohne Löschen)
-function checkDependentFinalMatches($db, $matchId, $round) {
+function checkDependentMatches($db, $groupId) {
     $affected = [];
-    
-    // Erstelle match_key aus round (Leerzeichen → Unterstriche)
-    $matchKey = str_replace(' ', '_', $round);
-    
-    // Finde alle Matches, die auf dieses Match referenzieren
-    $winnerRef = "W_" . $matchKey;
-    $loserRef = "L_" . $matchKey;
-    
-    $stmt = $db->prepare("
-        SELECT id, round, finished, team1_ref, team2_ref
-        FROM matches 
-        WHERE phase = 'final' 
-          AND (team1_ref = ? OR team1_ref = ? OR team2_ref = ? OR team2_ref = ?)
-    ");
-    $stmt->execute([$winnerRef, $loserRef, $winnerRef, $loserRef]);
-    $dependentMatches = $stmt->fetchAll();
-    
-    foreach ($dependentMatches as $match) {
-        $affected[] = [
-            'round' => $match['round'],
-            'finished' => $match['finished']
-        ];
-        
-        // Rekursiv: Prüfe ob dieses Match weitere abhängige Matches hat
-        if ($match['finished'] == 1) {
-            $subAffected = checkDependentFinalMatches($db, $match['id'], $match['round']);
-            $affected = array_merge($affected, $subAffected);
+    // Hole alle Matches, die auf dieses Match referenzieren (egal ob group_ref oder W_/L_)
+    $allMatches = $db->query("SELECT id, round, phase, group_id, finished, team1_id, team2_id, team1_ref, team2_ref FROM matches")->fetchAll();
+$saveCounter = 0; 
+    $checkedGroups = [];
+    while (true) {
+        if ($affected == []) {
+            // Erste Iteration: Prüfe direkt alle Matches gegen das zu löschende Match
+            foreach ($allMatches as $match) {
+                $affected = checkForOneMatchWithRef($db, $match, $affected, $groupId);
+            }
+        } else {
+            // Weitere Iterationen: Prüfe das nächste Match aus affected, um Refs auf die affectes auch zu finden
+            for ($i=0; $i<count($affected); $i++) {
+                if ($affected[$i]['checked'] == true) continue;
+                $affected[$i]['checked'] = true;
+                $matchToCheck = $affected[$i]['match'];
+
+                // wenn Gruppe schon geprüft, weiter, um unnötige Prüfungen zu vermeiden
+                if (in_array($matchToCheck['group_id'], $checkedGroups)) continue;
+                $checkedGroups[] = $matchToCheck['group_id'];
+                foreach ($allMatches as $match) {
+                    $affected = checkForOneMatchWithRef($db, $match, $affected, $matchToCheck['group_id']);
+                }
+                $affected = deleteDuplicatesInAffected($affected);
+            }
         }
+        $affected = deleteDuplicatesInAffected($affected);
+        // Abbruch, wenn alle matches in affected auf checked=true sind, also alle bereits geprüft wurden
+        $stillUncheckedMatches = count(array_filter($affected, function($entry) {
+            return empty($entry['checked']);
+        })) > 0;
+        if (!$stillUncheckedMatches) {
+            break;
+        }
+// Sicherheitsabbruch
+$saveCounter++;
+if ($saveCounter>10) {
+    logge("Abbruch nach 10 Iterationen. Möglicherweise zyklische Referenzen oder Fehler in der Logik.", 'red');
+    break;
+}
+
     }
-    
     return $affected;
 }
 
-// Funktion zum Zurücksetzen abhängiger Finalrunden-Matches
-function resetDependentFinalMatches($db, $deletedMatchId, $deletedRound) {
+// Robustes, rekursives Zurücksetzen aller abhängigen Matches (egal ob Gruppen, ZG, Final)
+function resetDependentMatches($db, $deletedMatchId, $groupId) {
     $warnings = [];
-    
-    // Erstelle match_key aus round (Leerzeichen → Unterstriche)
-    $matchKey = str_replace(' ', '_', $deletedRound);
-    
-    // Finde alle Matches, die auf dieses Match referenzieren (W_<matchKey> oder L_<matchKey>)
-    $winnerRef = "W_" . $matchKey;
-    $loserRef = "L_" . $matchKey;
-    
-    $stmt = $db->prepare("
-        SELECT id, round, finished, team1_ref, team2_ref, team1_id, team2_id
-        FROM matches 
-        WHERE phase = 'final' 
-          AND (team1_ref = ? OR team1_ref = ? OR team2_ref = ? OR team2_ref = ?)
-    ");
-    $stmt->execute([$winnerRef, $loserRef, $winnerRef, $loserRef]);
-    $dependentMatches = $stmt->fetchAll();
-    
-    foreach ($dependentMatches as $match) {
-        $needsReset = false;
+    // Hole alle Matches, die auf dieses Match referenzieren
+    $allMatches = checkDependentMatches($db, $groupId);
+    $allAffectedMatches = array_values(array_map(function($entry) { return $entry['match']; }, $allMatches));
+
+    foreach ($allAffectedMatches as $match) {
         $newTeam1Id = $match['team1_id'];
         $newTeam2Id = $match['team2_id'];
-        
-        // Prüfe team1_ref
-        if ($match['team1_ref'] === $winnerRef || $match['team1_ref'] === $loserRef) {
-            $newTeam1Id = null;
-            $needsReset = true;
-        }
-        
-        // Prüfe team2_ref
-        if ($match['team2_ref'] === $winnerRef || $match['team2_ref'] === $loserRef) {
-            $newTeam2Id = null;
-            $needsReset = true;
-        }
-        
-        if ($needsReset) {
-            // Wenn das abhängige Match bereits ein Ergebnis hat, füge Warnung hinzu
-            if ($match['finished'] == 1) {
-                $warnings[] = "• " . htmlspecialchars($match['round']) . " (Ergebnis wurde ebenfalls gelöscht)";
-                
-                // Lösche auch das Ergebnis des abhängigen Matches
-                $db->prepare("DELETE FROM sets WHERE match_id = ?")->execute([$match['id']]);
-                $db->prepare("UPDATE matches SET finished = 0, winner_id = NULL, loser_id = NULL, team1_id = ?, team2_id = ? WHERE id = ?")
-                    ->execute([$newTeam1Id, $newTeam2Id, $match['id']]);
-                
-                // Rekursiv: Prüfe ob dieses Match weitere abhängige Matches hat
-                $subWarnings = resetDependentFinalMatches($db, $match['id'], $match['round']);
-                $warnings = array_merge($warnings, $subWarnings);
-            } else {
-                // Nur Teams zurücksetzen, kein Ergebnis vorhanden
-                $db->prepare("UPDATE matches SET team1_id = ?, team2_id = ? WHERE id = ?")
-                    ->execute([$newTeam1Id, $newTeam2Id, $match['id']]);
+        foreach ([['ref' => $match['team1_ref'], 'side' => 1], ['ref' => $match['team2_ref'], 'side' => 2]] as $refInfo) {
+            $ref = $refInfo['ref'];
+            $side = $refInfo['side'];
+            if (!$ref) continue;
+
+            $refInfoArr = json_decode($refInfo['ref'], true); // klappt
+            if($refInfoArr['type'] && $refInfoArr['type'] === "group_place"  && ($refInfoArr['group'] === $groupId)) {
+                // in refInfo ist ein Match, welches sich auf das aktuelle bezieht, egal ob finished oder nicht
+                if ($side === 1) {$newTeam1Id = -1; $resetRef = true;}
+                if ($side === 2) {$newTeam2Id = -1; $resetRef = true;}
+            }
+            if($refInfoArr['type'] && $refInfoArr['type'] === "match_winner"  && ($refInfoArr['match_id'] === $groupId)) {
+                // in refInfo ist ein Match, welches sich auf das aktuelle bezieht, egal ob finished oder nicht
+                if ($side === 1) {$newTeam1Id = -1; $resetRef = true;}
+                if ($side === 2) {$newTeam2Id = -1; $resetRef = true;}
             }
         }
+
+        if ($match['finished'] == 1) {
+            $warnings[] = "• " . htmlspecialchars($match['round']) . "/" . htmlspecialchars($match['id']) . " (Ergebnis wurde ebenfalls gelöscht)";
+            $db->prepare("DELETE FROM sets WHERE match_id = ?")->execute([$match['id']]);
+            $sql = "UPDATE matches SET finished = 0, winner_id = NULL, loser_id = NULL, ";
+            $sql .= $resetRef ? "referee_team_id = NULL, " : "";
+            $sql .= "team1_id = ?, team2_id = ? WHERE id = ?";
+            $db->prepare($sql)->execute([$newTeam1Id, $newTeam2Id, $match['id']]);
+        } else {
+            $sql = "UPDATE matches SET team1_id = ?, team2_id = ? ";
+            $sql .= $resetRef ? ", referee_team_id = NULL " : "";
+            $sql .= "WHERE id = ?";
+            $db->prepare($sql)->execute([$newTeam1Id, $newTeam2Id, $match['id']]);
+        }
     }
-    
     return $warnings;
 }
 
-// Funktion zum Aktualisieren aller Finalspiele mit Gruppenreferenzen
-function updateGroupPositionsInFinals($db) {
-    // Prüfe ob ALLE Gruppenspiele abgeschlossen sind
-    $groupMatchCount = $db->query("SELECT COUNT(*) as cnt FROM matches WHERE phase = 'group'")->fetch()['cnt'];
-    $finishedGroupMatchCount = $db->query("SELECT COUNT(*) as cnt FROM matches WHERE phase = 'group' AND finished = 1")->fetch()['cnt'];
+// Funktion zum Auflösen einer Team-Referenz, gibt die TeamID einer referenz zurück
+// db, ref=ref des zu ändernden Matches, completedMatchId=ID beendetes Match, group_id=gruppe die beendet wurde
+function resolveTeamReference($db, $ref, $completedMatchId, $completedGroupId) {
+    // Gruppenplatzierung (type: group_place, group: G1, place: 1)
+    $refArray = json_decode($ref, true);
+    if ($refArray && isset($refArray['type']) && $refArray['type'] === 'group_place' && isset($refArray['group']) && isset($refArray['place'])) {
+        $groupId = $refArray['group'];
+        $position = $refArray['place'];
+        if ($groupId !== $completedGroupId) {
+            return -1;
+        }
+
+        $standings = calculateGroupStandings($db, $groupId);
+        if (isset($standings[$position - 1])) {
+            return $standings[$position - 1]['id'];
+        }
+        return -1;
+    }
     
-    $allGroupMatchesFinished = ($groupMatchCount > 0 && $groupMatchCount === $finishedGroupMatchCount);
-    
-    // Finde alle Finalspiele mit Gruppenreferenzen (A_1, A_2, B_1, B_2)
-    $stmt = $db->query("SELECT id, team1_ref, team2_ref FROM matches WHERE phase = 'final'");
-    
-    foreach ($stmt as $match) {
-        $hasGroupRef1 = $match['team1_ref'] && strpos($match['team1_ref'], '_') !== false && in_array($match['team1_ref'][0], ['A', 'B']);
-        $hasGroupRef2 = $match['team2_ref'] && strpos($match['team2_ref'], '_') !== false && in_array($match['team2_ref'][0], ['A', 'B']);
-        
-        // Wenn dieses Match Gruppenreferenzen hat
-        if ($hasGroupRef1 || $hasGroupRef2) {
-            // Wenn NICHT alle Gruppenspiele fertig sind, setze die Teams auf NULL zurück
-            if (!$allGroupMatchesFinished) {
-                $db->prepare("UPDATE matches SET team1_id = NULL, team2_id = NULL WHERE id = ?")
-                    ->execute([$match['id']]);
-            } else {
-                // Alle Gruppenspiele sind fertig - berechne die Platzierungen
-                $newTeam1Id = null;
-                $newTeam2Id = null;
-                
-                // Prüfe team1_ref auf Gruppenreferenz
-                if ($hasGroupRef1) {
-                    list($groupName, $position) = explode('_', $match['team1_ref']);
-                    $groupId = $groupName === 'A' ? 1 : 2;
-                    $newTeam1Id = getGroupStandingTeam($db, $groupId, intval($position));
-                }
-                
-                // Prüfe team2_ref auf Gruppenreferenz
-                if ($hasGroupRef2) {
-                    list($groupName, $position) = explode('_', $match['team2_ref']);
-                    $groupId = $groupName === 'A' ? 1 : 2;
-                    $newTeam2Id = getGroupStandingTeam($db, $groupId, intval($position));
-                }
-                
-                // Hole aktuelle Werte falls nur eine Seite aktualisiert wird
-                if ($newTeam1Id === null) {
-                    $current = $db->query("SELECT team1_id FROM matches WHERE id = {$match['id']}")->fetch();
-                    $newTeam1Id = $current['team1_id'];
-                }
-                if ($newTeam2Id === null) {
-                    $current = $db->query("SELECT team2_id FROM matches WHERE id = {$match['id']}")->fetch();
-                    $newTeam2Id = $current['team2_id'];
-                }
-                
-                $db->prepare("UPDATE matches SET team1_id = ?, team2_id = ? WHERE id = ?")
-                    ->execute([$newTeam1Id, $newTeam2Id, $match['id']]);
-            }
+    // Match-Referenz (type: match_winner, match_id: 21, winner: true/false)
+    if ($refArray && isset($refArray['type']) && $refArray['type'] === 'match_winner' && isset($refArray['match_id']) && isset($refArray['winner'])) {
+        $field = $refArray['winner'] ? 'winner_id' : 'loser_id';
+        if ($refArray['match_id'] == $completedGroupId) {
+            return $db->query("SELECT $field FROM matches WHERE id = $completedMatchId")->fetchColumn();
         }
     }
+    
+    return -1;
 }
 
-// Funktion zum Auflösen einer Team-Referenz
-function resolveTeamReference($db, $ref, $completedMatchId, $completedRound) {
-    // Gruppenplatzierung (A_1, B_2, etc.)
-    if (strpos($ref, '_') !== false && in_array($ref[0], ['A', 'B'])) {
-        list($groupName, $position) = explode('_', $ref);
-        $groupId = $groupName === 'A' ? 1 : 2;
-        return getGroupStandingTeam($db, $groupId, intval($position));
-    }
-    
-    // Match-Referenz (W_xxx, L_xxx)
-    if (strpos($ref, 'W_') === 0 || strpos($ref, 'L_') === 0) {
-        $field = strpos($ref, 'W_') === 0 ? 'winner_id' : 'loser_id';
-        $matchKey = substr($ref, 2); // Entferne W_ oder L_
-        
-        // Prüfe ob es eine alte numerische Referenz ist (z.B. W_21)
-        if (is_numeric($matchKey)) {
-            $refMatchId = intval($matchKey);
-            if ($refMatchId == $completedMatchId) {
-                return $db->query("SELECT $field FROM matches WHERE id = $completedMatchId")->fetchColumn();
-            }
-        } 
-        // Neue match_key-Referenz (z.B. W_Halbfinale_1)
-        else {
-            // Konvertiere match_key zu round-Name (Unterstriche → Leerzeichen)
-            $roundName = str_replace('_', ' ', $matchKey);
-            
-            // Prüfe ob das abgeschlossene Match diesem round entspricht
-            if (strcasecmp($completedRound, $roundName) === 0) {
-                return $db->query("SELECT $field FROM matches WHERE id = $completedMatchId")->fetchColumn();
-            }
-        }
-    }
-    
-    return null;
-}
-
-// Funktion zum Berechnen der Gruppentabelle und Ermittlung der Position
-function getGroupStandingTeam($db, $groupId, $position) {
-    // Hole alle Teams der Gruppe
-    $teams = $db->prepare("SELECT team_id FROM group_teams WHERE group_id = ? ORDER BY team_id");
-    $teams->execute([$groupId]);
-    $teamIds = $teams->fetchAll(PDO::FETCH_COLUMN);
-    
-    $standings = [];
-    
-    foreach ($teamIds as $teamId) {
-        $standings[$teamId] = [
-            'team_id' => $teamId,
-            'points' => 0,              // Satzpunkte
-            'sets_won' => 0,
-            'sets_lost' => 0,
-            'points_scored' => 0,
-            'points_conceded' => 0,
-            'point_diff' => 0,
-            'matches' => []
-        ];
-    }
-    
-    // Hole alle Sätze der beendeten Gruppenspiele
-    $setsStmt = $db->prepare("
-        SELECT m.id as match_id, m.team1_id, m.team2_id,
-               s.set_number, s.team1_points, s.team2_points
-        FROM matches m
-        JOIN sets s ON s.match_id = m.id
-        WHERE m.group_id = ? AND m.phase = 'group' AND m.finished = 1
-        ORDER BY m.id, s.set_number
-    ");
-    $setsStmt->execute([$groupId]);
-    $sets = $setsStmt->fetchAll();
-    
-    foreach ($sets as $set) {
-        $t1 = $set['team1_id'];
-        $t2 = $set['team2_id'];
-        $p1 = $set['team1_points'];
-        $p2 = $set['team2_points'];
-        
-        $standings[$t1]['points_scored'] += $p1;
-        $standings[$t1]['points_conceded'] += $p2;
-        $standings[$t2]['points_scored'] += $p2;
-        $standings[$t2]['points_conceded'] += $p1;
-        
-        // Satzpunkte vergeben
-        if ($p1 > $p2) {
-            $standings[$t1]['points'] += 2;
-            $standings[$t1]['sets_won']++;
-            $standings[$t2]['sets_lost']++;
-        } elseif ($p2 > $p1) {
-            $standings[$t2]['points'] += 2;
-            $standings[$t2]['sets_won']++;
-            $standings[$t1]['sets_lost']++;
-        } else {
-            $standings[$t1]['points'] += 1;
-            $standings[$t2]['points'] += 1;
-        }
-    }
-    
-    // Punktdifferenz berechnen
-    foreach ($standings as $teamId => $data) {
-        $standings[$teamId]['point_diff'] = $data['points_scored'] - $data['points_conceded'];
-    }
-    
-    // Sortiere nach: 1. Satzpunkte, 2. Gewonnene Sätze, 3. Punktdifferenz
-    $standingsArray = array_values($standings);
-    usort($standingsArray, function($a, $b) {
-        // 1. Nach Satzpunkten
-        if ($a['points'] != $b['points']) {
-            return $b['points'] - $a['points'];
-        }
-        // 2. Nach gewonnenen Sätzen
-        if ($a['sets_won'] != $b['sets_won']) {
-            return $b['sets_won'] - $a['sets_won'];
-        }
-        // 3. Nach Punktdifferenz
-        if ($a['point_diff'] != $b['point_diff']) {
-            return $b['point_diff'] - $a['point_diff'];
-        }
-        return 0;
-    });
-    
-    // Rückgabe des Teams an der gewünschten Position
-    if ($position > 0 && $position <= count($standingsArray)) {
-        return $standingsArray[$position - 1]['team_id'];
-    }
-    
-    return null;
-}
-
-// Funktion zum Zuweisen von Schiedsrichtern für Finalrunden-Matches
-function assignRefereesForFinalMatches($db) {
+// Funktion zum Zuweisen von Schiedsrichtern für Finalrunden-Matches und GruppenMatches
+function assignRefereesForMatches($db, $groupId = null) {
     // Hole alle Finalrunden-Matches ohne Schiedsrichter, aber mit beiden Teams
-    $matches = $db->query("
-        SELECT id, team1_id, team2_id, start_time, referee_team_id
-        FROM matches 
-        WHERE phase = 'final' 
-          AND team1_id IS NOT NULL 
-          AND team2_id IS NOT NULL
-    ")->fetchAll();
+    $phase = 'final';
+    if ($groupId !== null) {
+        $stmt = $db->prepare("
+            SELECT id, team1_id, team2_id, start_time, referee_team_id
+            FROM matches 
+            WHERE phase = 'group' AND group_id = ?
+            AND team1_id IS NOT NULL AND team1_id >= 0
+            AND team2_id IS NOT NULL AND team2_id >= 0
+        ");
+        $stmt->execute([$groupId]);
+        $matches = $stmt->fetchAll();
+    } else {
+        $matches = $db->query("
+            SELECT id, team1_id, team2_id, start_time, referee_team_id
+            FROM matches 
+            WHERE phase = 'final' 
+            AND team1_id IS NOT NULL AND team1_id >= 0
+            AND team2_id IS NOT NULL AND team2_id >= 0
+        ")->fetchAll();
+    }
     
     foreach ($matches as $match) {
         // Prüfe, ob der Schiedsrichter ein spielendes Team ist - falls ja, lösche Zuweisung
@@ -788,16 +688,17 @@ function assignRefereesForFinalMatches($db) {
             }
         }
         
-        $playingTeams = array_unique($playingTeams);
-        
+        $playingTeams = array_unique($playingTeams);   // entfernt duplikate
+        $playingTeams = array_values($playingTeams);   // indiziert die keys linear durch
+
         // Sicherheitscheck: wenn keine Teams ausgeschlossen werden können, überspringe
         if (count($playingTeams) == 0) {
             continue;
         }
         
         // Erstelle Platzhalter für SQL IN-Klausel
-        $placeholders = str_repeat('?,', count($playingTeams) - 1) . '?';
-        
+        $placeholders = implode(',', array_fill(0, count($playingTeams), '?'));
+
         // Finde Team mit wenigsten Schiedsrichter-Einsätzen, das nicht zur gleichen Zeit spielt
         $referee = $db->prepare("
             SELECT t.id, COUNT(m.id) as ref_count
@@ -811,6 +712,7 @@ function assignRefereesForFinalMatches($db) {
         $referee->execute($playingTeams);
         $refData = $referee->fetch();
         
+
         if ($refData) {
             $db->prepare("UPDATE matches SET referee_team_id = ? WHERE id = ?")
                 ->execute([$refData['id'], $match['id']]);
@@ -873,7 +775,7 @@ $allTeams = $db->query("SELECT id, name FROM teams ORDER BY name")->fetchAll();
         <button type="submit" name="delete_result" class="btn btn-danger">
             Ja, Ergebnis und alle abhängigen Spiele löschen
         </button>
-        <button type="button" class="btn btn-secondary" onclick="window.location.reload()">
+        <button type="button" class="btn btn-secondary" onclick="window.location.href='result_entry.php'">
             Abbrechen
         </button>
     </form>
@@ -903,13 +805,16 @@ $allTeams = $db->query("SELECT id, name FROM teams ORDER BY name")->fetchAll();
                         </thead>
                         <tbody>
                         <?php foreach ($matches as $m): 
-                            $team1 = $m['team1_name'] ?: resolveTeam($db, $m['team1_id'], $m['team1_ref']);
-                            $team2 = $m['team2_name'] ?: resolveTeam($db, $m['team2_id'], $m['team2_ref']);
+                            // Behandle -1 wie NULL für nicht initialisiert
+                            $team1_id = ($m['team1_id'] === null || $m['team1_id'] == -1) ? null : $m['team1_id'];
+                            $team2_id = ($m['team2_id'] === null || $m['team2_id'] == -1) ? null : $m['team2_id'];
+                            // Zeige Teamnamen oder referenz als String
+                            $team1 = resolveTeamToName($db, $team1_id, $m['team1_ref']); //($team1_id === null ) ? $tempTeam1 : $m['team1_name'];
+                            $team2 = resolveTeamToName($db, $team2_id, $m['team2_ref']); //($team2_id === null ) ? $tempTeam2 : $m['team2_name'];
                             $time = $m['start_time'] ? date('H:i', strtotime($m['start_time'])) : '-';
                             $field = $m['field_number'] ? 'Feld ' . $m['field_number'] : '-';
-                            
                             // Prüfe ob beide Teams feststehen
-                            $canEnterResult = $m['team1_id'] && $m['team2_id'];
+                            $canEnterResult = $team1_id && $team2_id;
                         ?>
                             <tr class="<?= $m['finished'] ? 'table-success' : '' ?>">
                                 <td class="d-none d-md-table-cell"><?= $time ?></td>
@@ -978,10 +883,12 @@ $allTeams = $db->query("SELECT id, name FROM teams ORDER BY name")->fetchAll();
                                 </td>
                                 <td class="action-buttons">
                                     <?php if ($canEnterResult): ?>
+                                        <?php if (!$m['finished']): ?>
                                         <button class="btn btn-sm btn-primary mb-1" data-bs-toggle="modal" data-bs-target="#resultModal<?= $m['id'] ?>">
                                             <span class="d-none d-sm-inline"><?= $m['finished'] ? 'Bearbeiten' : 'Eintragen' ?></span>
                                             <span class="d-inline d-sm-none"><?= $m['finished'] ? '✏️' : '➕' ?></span>
                                         </button>
+                                        <?php endif; ?>
                                         <?php if ($m['finished']): ?>
                                             <form method="post" class="d-inline">
                                                 <input type="hidden" name="match_id" value="<?= $m['id'] ?>">
