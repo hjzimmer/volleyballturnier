@@ -31,23 +31,35 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     
     $command = $input['command'];
     $allowedCommands = ['start', 'pause', 'reset'];
-    
-    if (!in_array($command, $allowedCommands)) {
-        http_response_code(400);
-        echo json_encode(['error' => 'Invalid command. Allowed: ' . implode(', ', $allowedCommands)]);
+    if ($command === 'status') {
+        // Timer-Status speichern
+        $statusFile = __DIR__ . '/timer_status.json';
+        $data = [
+            'time' => $input['time'],
+            'running' => $input['running'],
+            'paused' => $input['paused'],
+            'timestamp' => time()
+        ];
+        file_put_contents($statusFile, json_encode($data));
+        echo json_encode(['success' => true, 'status' => $data]);
         exit;
     }
-    
+    if (!in_array($command, $allowedCommands)) {
+        http_response_code(400);
+        echo json_encode(['error' => 'Invalid command. Allowed: ' . implode(', ', $allowedCommands) . ', status']);
+        exit;
+    }
+
     $data = [
         'command' => $command,
         'timestamp' => time()
     ];
-    
+
     // Optional: Startzeit für Start-Befehl
     if ($command === 'start' && isset($input['startTime'])) {
         $data['startTime'] = $input['startTime'];
     }
-    
+
     file_put_contents($controlFile, json_encode($data));
     echo json_encode(['success' => true, 'command' => $command]);
     exit;

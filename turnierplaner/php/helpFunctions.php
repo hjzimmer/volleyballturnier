@@ -1,6 +1,4 @@
 <?php
-require 'db.php';
-
 // Funktion zur Berechnung der Gruppenstatistiken (vereinfacht)
 function calculateGroupStandings($db, $groupId) {
     // Prüfe, ob Gruppe dynamisch zusammengesetzt ist (group_place)

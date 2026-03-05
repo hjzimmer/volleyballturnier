@@ -476,6 +476,26 @@ function parseTimeValue($value) {
             } else {
                 display.classList.remove('finished');
             }
+            // Timer-Status an Server senden
+            sendTimerStatus(currentTime, isRunning, isPaused);
+        }
+
+        // Sende aktuelle Zeit an timer_control.php
+        function sendTimerStatus(time, running, paused) {
+            try {
+                fetch('timer_control.php', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        command: 'status',
+                        time: time,
+                        running: running,
+                        paused: paused
+                    })
+                });
+            } catch (e) {
+                // Fehler ignorieren, damit kein JS-Abbruch
+            }
         }
         
         function startTimer() {
@@ -532,7 +552,9 @@ function parseTimeValue($value) {
                 
                 // Audio fortsetzen
                 resumeAudio();
-                
+
+                sendTimerStatus(currentTime, isRunning, isPaused);
+
                 timerInterval = setInterval(() => {
                     if (currentTime > 0) {
                         currentTime--;
@@ -555,6 +577,8 @@ function parseTimeValue($value) {
                 
                 // Audio pausieren
                 pauseAudio();
+
+                sendTimerStatus(currentTime, isRunning, isPaused);
             }
         }
         

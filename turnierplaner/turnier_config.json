@@ -1,125 +1,255 @@
 {
-  "tournament_name": "3. Otti Fun Cup - 2026",
-  "logo_path": "data/vsvlogo.jpg",
-  "tournament_start": "2026-04-25T09:00",
-  "fields": 2,
-  "sets_per_match": 2,
-  "set_minutes": 8,
-  "pause_between_sets": 1,
-  "pause_between_matches": 6,
-  "lunch_break": {
-    "start": "2026-04-25T12:15",
-    "duration_minutes": 25
-  },
-  "result_entry_password": "admin",
-  
-  "phases": [
-    {
-      "id": "vorrunde",
-      "name": "Vorrunde",
-      "groups": [
-        { "id": "G1", "name": "Gruppe A", "teams": [1, 2, 3, 4, 5] },
-        { "id": "G2", "name": "Gruppe B", "teams": [6, 7, 8, 9, 10] }
-      ]
+    "tournament_name": "3. Otti Fun Cup - 2026",
+    "logo_path": "data\/vsvlogo.jpg",
+    "tournament_start": "2026-04-25T09:00",
+    "fields": 2,
+    "sets_per_match": 2,
+    "set_minutes": 8,
+    "pause_between_sets": 1,
+    "pause_between_matches": 6,
+    "lunch_break": {
+        "start": "2026-04-25T12:15",
+        "duration_minutes": 25
     },
-    {
-      "id": "finale",
-      "name": "Finalrunde",
-
-      "matches": [
-        { 
-          "id": "ZR1", "name": "Zwischenrunde 1", 
-          "team1": { "type": "group_place", "group": "G1", "place": 1 },
-          "team2": { "type": "group_place", "group": "G2", "place": 4 },
-          "winner_placement": null,
-          "loser_placement": null
+    "result_entry_password": "admin",
+    "phases": [
+        {
+            "id": "vorrunde",
+            "name": "Vorrunde",
+            "groups": [
+                {
+                    "id": "G1",
+                    "name": "Gruppe A",
+                    "teams": [
+                        1,
+                        2,
+                        3,
+                        4,
+                        5
+                    ]
+                },
+                {
+                    "id": "G2",
+                    "name": "Gruppe B",
+                    "teams": [
+                        6,
+                        7,
+                        8,
+                        9,
+                        10
+                    ]
+                }
+            ]
         },
-        { 
-          "id": "ZR2", "name": "Zwischenrunde 2", 
-          "team1": { "type": "group_place", "group": "G1", "place": 2 },
-          "team2": { "type": "group_place", "group": "G2", "place": 3 },
-          "winner_placement": null,
-          "loser_placement": null
+        {
+            "id": "zwischenrunde",
+            "name": "Zwischenrunde",
+            "groups": [
+                {
+                    "id": "ZG1",
+                    "name": "Zwischenrunde ZG1",
+                    "teams": [
+                        {
+                            "type": "group_place",
+                            "group": "G1",
+                            "place": 1
+                        },
+                        {
+                            "type": "group_place",
+                            "group": "G2",
+                            "place": 2
+                        },
+                        {
+                            "type": "group_place",
+                            "group": "G1",
+                            "place": 3
+                        },
+                        {
+                            "type": "group_place",
+                            "group": "G1",
+                            "place": 4
+                        }
+                    ]
+                },
+                {
+                    "id": "ZG2",
+                    "name": "Zwischenrunde ZG2",
+                    "teams": [
+                        {
+                            "type": "group_place",
+                            "group": "G2",
+                            "place": 1
+                        },
+                        {
+                            "type": "group_place",
+                            "group": "G1",
+                            "place": 2
+                        },
+                        {
+                            "type": "group_place",
+                            "group": "G2",
+                            "place": 3
+                        },
+                        {
+                            "type": "group_place",
+                            "group": "G2",
+                            "place": 4
+                        }
+                    ]
+                },
+                {
+                    "id": "ZG3",
+                    "name": "Plätze 7-10",
+                    "teams": [
+                        {
+                            "type": "group_place",
+                            "group": "G1",
+                            "place": 4
+                        },
+                        {
+                            "type": "group_place",
+                            "group": "G2",
+                            "place": 4
+                        },
+                        {
+                            "type": "group_place",
+                            "group": "G1",
+                            "place": 5
+                        },
+                        {
+                            "type": "group_place",
+                            "group": "G2",
+                            "place": 5
+                        }
+                    ]
+                }
+            ]
         },
-        { 
-          "id": "ZR3", "name": "Zwischenrunde 3", 
-          "team1": { "type": "group_place", "group": "G2", "place": 1 },
-          "team2": { "type": "group_place", "group": "G1", "place": 4 },
-          "winner_placement": null,
-          "loser_placement": null
-        },
-        { 
-          "id": "ZR4", "name": "Zwischenrunde 4", 
-          "team1": { "type": "group_place", "group": "G2", "place": 2 },
-          "team2": { "type": "group_place", "group": "G1", "place": 3 },
-          "winner_placement": null,
-          "loser_placement": null
-        },
-        { 
-          "id": "HF1", "name": "Halbfinale 1", 
-          "team1": { "type": "match_winner", "match_id": "ZR1", "winner": true },
-          "team2": { "type": "match_winner", "match_id": "ZR2", "winner": true },
-          "winner_placement": null,
-          "loser_placement": null
-        },
-        { 
-          "id": "HF2", "name": "Halbfinale 2",   
-          "team1": { "type": "match_winner", "match_id": "ZR3", "winner": true },
-          "team2": { "type": "match_winner", "match_id": "ZR4", "winner": true },
-          "winner_placement": null,
-          "loser_placement": null
-        },
-        { 
-          "id": "HF_V1", "name": "Halbfinale Verlierer 1", 
-          "team1": { "type": "match_winner", "match_id": "ZR1", "winner": false },
-          "team2": { "type": "match_winner", "match_id": "ZR2", "winner": false },
-          "winner_placement": null,
-          "loser_placement": null
-        },
-        { 
-          "id": "HF_V2", "name": "Halbfinale Verlierer 2", 
-          "team1": { "type": "match_winner", "match_id": "ZR3", "winner": false },
-          "team2": { "type": "match_winner", "match_id": "ZR4", "winner": false },
-          "winner_placement": null,
-          "loser_placement": null
-        },
-        { 
-          "id": "Spiel_Platz_9", "name": "Spiel um Platz 9", 
-          "team1": { "type": "group_place", "group": "G1", "place": 5 }, 
-          "team2": { "type": "group_place", "group": "G2", "place": 5 },
-          "winner_placement": 9,
-          "loser_placement": 10
-        },
-        { 
-          "id": "Spiel_Platz_7", "name": "Spiel um Platz 7", 
-          "team1": { "type": "match_winner", "match_id": "HF_V1", "winner": false },
-          "team2": { "type": "match_winner", "match_id": "HF_V2", "winner": false },
-          "winner_placement": 7,
-          "loser_placement": 8
-        },
-        { 
-          "id": "Spiel_Platz_5", "name": "Spiel um Platz 5", 
-          "team1": { "type": "match_winner", "match_id": "HF_V1", "winner": true },
-          "team2": { "type": "match_winner", "match_id": "HF_V2", "winner": true },
-          "winner_placement": 5,
-          "loser_placement": 6
-        },
-        { 
-          "id": "Spiel_Platz_3", "name": "Spiel um Platz 3", 
-          "team1": { "type": "match_winner", "match_id": "HF1", "winner": false },
-          "team2": { "type": "match_winner", "match_id": "HF2", "winner": false },
-          "winner_placement": 3,
-          "loser_placement": 4
-        },
-        { 
-          "id": "Finale", "name": "Finale",  
-          "team1": { "type": "match_winner", "match_id": "HF1", "winner": true },
-          "team2": { "type": "match_winner", "match_id": "HF2", "winner": true },
-          "winner_placement": 1,
-          "loser_placement": 2
+        {
+            "id": "finale",
+            "name": "Finalrunde",
+            "matches": [
+                {
+                    "id": "F1",
+                    "name": "Spiel um Platz 5",
+                    "team1": {
+                        "type": "group_place",
+                        "group": "ZG1",
+                        "place": 3
+                    },
+                    "team2": {
+                        "type": "group_place",
+                        "group": "ZG2",
+                        "place": 3
+                    },
+                    "winner_placement": 5,
+                    "loser_placement": 6
+                },
+                {
+                    "id": "F2",
+                    "name": "Spiel um Platz 3",
+                    "team1": {
+                        "type": "group_place",
+                        "group": "ZG1",
+                        "place": 2
+                    },
+                    "team2": {
+                        "type": "group_place",
+                        "group": "ZG2",
+                        "place": 2
+                    },
+                    "winner_placement": 3,
+                    "loser_placement": 4
+                },
+                {
+                    "id": "F3",
+                    "name": "Finale",
+                    "team1": {
+                        "type": "group_place",
+                        "group": "ZG1",
+                        "place": 1
+                    },
+                    "team2": {
+                        "type": "group_place",
+                        "group": "ZG2",
+                        "place": 1
+                    },
+                    "winner_placement": 1,
+                    "loser_placement": 2
+                },
+                {
+                    "id": "P7",
+                    "name": "Platz 7 aus Zwischenrunde",
+                    "team1": null,
+                    "team2": null,
+                    "winner_placement": {
+                        "type": "group_place",
+                        "group": "ZG3",
+                        "place": 1,
+                        "final_placement": 7
+                    },
+                    "loser_placement": {
+                        "type": "group_place",
+                        "group": "ZG3",
+                        "place": 2,
+                        "final_placement": 8
+                    }
+                },
+                {
+                    "id": "P9",
+                    "name": "Platz 9 aus Zwischenrunde",
+                    "team1": null,
+                    "team2": null,
+                    "winner_placement": {
+                        "type": "group_place",
+                        "group": "ZG3",
+                        "place": 3,
+                        "final_placement": 9
+                    },
+                    "loser_placement": {
+                        "type": "group_place",
+                        "group": "ZG3",
+                        "place": 4,
+                        "final_placement": 10
+                    }
+                }
+            ],
+            "matches_test": [
+                {
+                    "id": "T1",
+                    "name": "TestMatch1",
+                    "team1": {
+                        "type": "match_winner",
+                        "match_id": "F1",
+                        "winner": false
+                    },
+                    "team2": {
+                        "type": "match_winner",
+                        "match_id": "F2",
+                        "winner": true
+                    },
+                    "winner_placement": -1,
+                    "loser_placement": 0
+                },
+                {
+                    "id": "T2",
+                    "name": "TestMatch2",
+                    "team1": null,
+                    "team2": null,
+                    "winner_placement": {
+                        "type": "group_place",
+                        "group": "ZG1",
+                        "place": 3,
+                        "final_placement": 20
+                    },
+                    "loser_placement": {
+                        "type": "group_place",
+                        "group": "ZG2",
+                        "place": 3,
+                        "final_placement": 21
+                    }
+                }
+            ]
         }
-      ]
-
-    }
-  ]
+    ]
 }

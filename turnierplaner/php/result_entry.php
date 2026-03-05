@@ -85,11 +85,22 @@ require 'db.php';
 <!doctype html>
 <html lang="de">
 <head>
-  <meta charset="utf-8">
-  <title>Ergebniseingabe</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
-  <style>
+    <meta charset="utf-8">
+    <title>Ergebniseingabe</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+
+    <!-- Link zur Setup-Seite -->
+    <nav class="navbar navbar-expand-lg navbar-light bg-light mb-3">
+        <div class="container-fluid">
+            <a class="navbar-brand" href="#">Turnier</a>
+            <div class="d-flex">
+                <a href="setup_config_edit.php" class="btn btn-outline-secondary me-2">Setup &amp; Konfiguration</a>
+            </div>
+        </div>
+    </nav>
+
+    <style>
     /* Mobile Optimierung */
     @media (max-width: 768px) {
         body.container {
@@ -207,6 +218,9 @@ require 'db.php';
     </a>
     <a href="result_entry.php?logout=1" class="btn btn-sm btn-outline-secondary">🔓 Abmelden</a>
 </div>
+
+<!-- Timer-Status-Anzeige -->
+<div id="timerStatusBox" class="mb-3" style="min-height:2.5em;text-align:right;"></div>
 
 <ul class="nav nav-tabs mb-3">
   <li class="nav-item"><a class="nav-link" href="index.php">Spielplan</a></li>
@@ -1027,7 +1041,6 @@ async function sendTimerCommand(command, buttonElement) {
         payload.startTime = startTimeInput.value;
       }
     }
-    
     await fetch('Timer/timer_control.php', {
       method: 'POST',
       headers: {
@@ -1039,6 +1052,40 @@ async function sendTimerCommand(command, buttonElement) {
     console.error('Fehler beim Senden des Timer-Befehls:', error);
   }
 }
+
+// Timer-Status clever anzeigen
+async function updateTimerStatusBox() {
+  try {
+    const resp = await fetch('Timer/timer_status.json?_=' + Date.now());
+    if (!resp.ok) throw new Error('Status nicht erreichbar');
+    const data = await resp.json();
+    const box = document.getElementById('timerStatusBox');
+    if (!data || typeof data.time === 'undefined') {
+      box.innerHTML = '<span class="text-danger">Kein Timer-Status verfügbar</span>';
+      return;
+    }
+    // Formatierung
+    function fmt(sec) {
+      sec = Math.max(0, parseInt(sec)||0);
+      const m = Math.floor(sec/60), s = sec%60;
+      return m.toString().padStart(2,'0')+':'+s.toString().padStart(2,'0');
+    }
+    let status = '<span class="badge bg-secondary me-2">Gestoppt</span>';
+    if (data.running) {
+      status = '<span class="badge bg-success me-2">Läuft</span>';
+    } 
+    if (data.paused) {
+      status = '<span class="badge bg-warning text-dark me-2">Pausiert</span>';
+    }
+    
+    box.innerHTML = status + '<strong>Zeit:</strong> ' + fmt(data.time) +
+      (data.timestamp ? ' <span class="text-muted">(' + new Date(data.timestamp*1000).toLocaleTimeString() + ')</span>' : '');
+  } catch (e) {
+    document.getElementById('timerStatusBox').innerHTML = '<span class="text-danger">Timer-Status nicht erreichbar</span>';
+  }
+}
+setInterval(updateTimerStatusBox, 2000);
+updateTimerStatusBox();
 </script>
 
 </body>

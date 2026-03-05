@@ -3,6 +3,7 @@ session_start();
 
 // Prüfe Authentifizierung
 require 'db.php';
+require_once 'helpFunctions.php';
 
 $configPath = __DIR__ . '/../turnier_config.json';
 $config = json_decode(file_get_contents($configPath), true);
@@ -304,8 +305,9 @@ for ($page = 0; $page < $pageCount; $page++) {
     echo '</div>';
     
     foreach ($pageMatches as $m) {
-        $team1 = getTeamDisplay($m['team1_name'], $m['team1_ref']);
-        $team2 = getTeamDisplay($m['team2_name'], $m['team2_ref']);
+        $team1 = resolveTeamToName($db, $m['team1_id'], $m['team1_ref']);
+        $team2 = resolveTeamToName($db, $m['team2_id'], $m['team2_ref']);
+
         $round = $m['phase'] === 'group' ? 'Vorrunde' : $m['round'];
         $time = $m['start_time'] ? date('H:i', strtotime($m['start_time'])) : '-';
         $field = isset($m['field_number']) && $m['field_number'] ? 'Feld ' . $m['field_number'] : '';
