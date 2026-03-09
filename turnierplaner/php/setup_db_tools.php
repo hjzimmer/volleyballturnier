@@ -1,5 +1,14 @@
 <?php
 
+function createNewDb($dbFile) {
+    // Neue DB-Verbindung
+    $db = new PDO('sqlite:' . $dbFile);
+    $db->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
+    $sql = file_get_contents(__DIR__ . '/../schema.sql');
+    $db->exec($sql);
+    return $db;
+}
+
 // Initialisiert die Datenbankstruktur (Tabellen anlegen, wie Python-Version)
 function init_db(&$db) {
 
@@ -22,10 +31,8 @@ function init_db(&$db) {
         unlink($dbFile);
     }
     // Neue DB-Verbindung
-    $db = new PDO('sqlite:' . $dbFile);
-    $db->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
-    $sql = file_get_contents(__DIR__ . '/../schema.sql');
-    $db->exec($sql);
+    $db = createNewDb($dbFile);
+
     // Optional: DB schließen (PDO macht das automatisch beim Garbage Collection)
     return $db;
 }

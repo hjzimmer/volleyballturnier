@@ -231,6 +231,9 @@ function isGroupFinished($standings) {
     for ($i = 0; $i < count($standings); $i++) {
         if (isset($standings[$i]['matchCnt'])) {
             $matchCountProTeam[] = $standings[$i]['matchCnt'];
+            if ($standings[$i]['matchCnt'] == 0) {
+                return false; // Wenn ein Team noch kein Match gespielt hat, ist die Gruppe nicht fertig
+            }
         }
     }
 logge("anzahl gespielter matches pro team: " . json_encode($matchCountProTeam));    

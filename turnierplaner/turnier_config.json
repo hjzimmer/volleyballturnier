@@ -63,11 +63,6 @@
                             "type": "group_place",
                             "group": "G1",
                             "place": 3
-                        },
-                        {
-                            "type": "group_place",
-                            "group": "G1",
-                            "place": 4
                         }
                     ]
                 },
@@ -89,11 +84,6 @@
                             "type": "group_place",
                             "group": "G2",
                             "place": 3
-                        },
-                        {
-                            "type": "group_place",
-                            "group": "G2",
-                            "place": 4
                         }
                     ]
                 },
@@ -211,42 +201,6 @@
                         "group": "ZG3",
                         "place": 4,
                         "final_placement": 10
-                    }
-                }
-            ],
-            "matches_test": [
-                {
-                    "id": "T1",
-                    "name": "TestMatch1",
-                    "team1": {
-                        "type": "match_winner",
-                        "match_id": "F1",
-                        "winner": false
-                    },
-                    "team2": {
-                        "type": "match_winner",
-                        "match_id": "F2",
-                        "winner": true
-                    },
-                    "winner_placement": -1,
-                    "loser_placement": 0
-                },
-                {
-                    "id": "T2",
-                    "name": "TestMatch2",
-                    "team1": null,
-                    "team2": null,
-                    "winner_placement": {
-                        "type": "group_place",
-                        "group": "ZG1",
-                        "place": 3,
-                        "final_placement": 20
-                    },
-                    "loser_placement": {
-                        "type": "group_place",
-                        "group": "ZG2",
-                        "place": 3,
-                        "final_placement": 21
                     }
                 }
             ]

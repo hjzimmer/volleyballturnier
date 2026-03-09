@@ -1,5 +1,7 @@
 
 <?php
+require_once 'setup_db_tools.php';
+
 // Prüfe ob SQLite verfügbar ist
 if (!extension_loaded('pdo_sqlite')) {
     die('SQLite PDO Extension ist nicht geladen. Bitte aktiviere "extension=pdo_sqlite" in deiner php.ini');
@@ -7,7 +9,7 @@ if (!extension_loaded('pdo_sqlite')) {
 
 $dbPath = __DIR__ . '/../data/tournament.db';
 if (!file_exists($dbPath)) {
-    die('Datenbank nicht gefunden: ' . $dbPath . ' - Bitte führe zuerst main.py aus.');
+    createNewDb($dbPath);
 }
 
 $db = new PDO("sqlite:" . $dbPath);
