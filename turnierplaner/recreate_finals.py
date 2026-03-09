@@ -61,11 +61,11 @@ def recreate_finals_only():
     
     # 3. Erstelle Finalrunden-Matches neu
     print("[3/5] Erstelle Finalrunden-Matches neu...")
-    create_final_matches("turnier_config.json", group_tables)
+    create_final_matches("data/turnier_config.json", group_tables)
     
     # 4. Plane Zeitplan für alle Matches neu
     print("[4/5] Plane Zeitplan neu...")
-    schedule_all_matches("turnier_config.json")
+    schedule_all_matches("data/turnier_config.json")
     
     # 5. Weise Schiedsrichter für Endrunde zu
     print("[5/5] Weise Schiedsrichter für Endrunde zu...")

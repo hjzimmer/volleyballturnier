@@ -2,7 +2,7 @@
 require 'db.php';
 require 'helpFunctions.php';
 
-$configPath = __DIR__ . '/../turnier_config.json';
+$configPath = __DIR__ . '/../data/turnier_config.json';
 
 // Laden der aktuellen Konfiguration
 $config = json_decode(file_get_contents($configPath), true);
@@ -179,7 +179,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['init_tournament'])) {
         <fieldset class="border p-3 mb-4">
             <legend class="w-auto px-2">Teams bearbeiten</legend>
             <?php
-            $teamConfigPath = __DIR__ . '/../team_config.json';
+            $teamConfigPath = __DIR__ . '/../data/team_config.json';
             $teamConfig = json_decode(file_get_contents($teamConfigPath), true);
             $teams = $teamConfig['teams'] ?? [];
             $warteliste = $teamConfig['warteliste'] ?? [];
@@ -333,8 +333,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['init_tournament'])) {
                 </div>
             <?php elseif (isset($phase['groups'])): ?>
                 <?php
-                // Teams aus team_config.json laden
-                $teamConfig = json_decode(file_get_contents(__DIR__ . '/../team_config.json'), true);
+                // Teams aus data/team_config.json laden
+                $teamConfig = json_decode(file_get_contents(__DIR__ . '/../data/team_config.json'), true);
                 $allTeams = $teamConfig['teams'] ?? [];
                 // Prüfe, ob alle Teams in allen Gruppen int sind (echte IDs)
                 $allGroupsHaveIntTeams = true;

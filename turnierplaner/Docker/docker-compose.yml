@@ -8,8 +8,10 @@ services:
     container_name: turnierplaner
     ports:
       - "8000:80"
-#    volumes:
-#      - ..:/var/www/html/Turnierplaner
+    volumes:
+      - ..:/var/www/html/Turnierplaner
+    devices:
+      - "/dev/snd:/dev/snd"
     restart: unless-stopped
     environment:
       - TZ=Europe/Berlin

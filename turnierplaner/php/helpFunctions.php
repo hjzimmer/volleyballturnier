@@ -2,7 +2,7 @@
 // Funktion zur Berechnung der Gruppenstatistiken (vereinfacht)
 function calculateGroupStandings($db, $groupId) {
     // Prüfe, ob Gruppe dynamisch zusammengesetzt ist (group_place)
-    $configPath = __DIR__ . '/../turnier_config.json';
+    $configPath = __DIR__ . '/../data/turnier_config.json';
     $config = file_exists($configPath) ? json_decode(file_get_contents($configPath), true) : null;
     $teams = [];
     $foundConfig = false;

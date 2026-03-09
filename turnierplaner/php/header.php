@@ -1,6 +1,6 @@
 <?php
 // Lade Turnier-Konfiguration
-$config = json_decode(file_get_contents(__DIR__ . '/../turnier_config.json'), true);
+$config = json_decode(file_get_contents(__DIR__ . '/../data/turnier_config.json'), true);
 $tournamentName = $config['tournament_name'] ?? 'Volleyball Turnier';
 $logoPath = $config['logo_path'] ?? '';
 

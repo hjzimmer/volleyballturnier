@@ -5,7 +5,7 @@ session_start();
 require 'db.php';
 require_once 'helpFunctions.php';
 
-$configPath = __DIR__ . '/../turnier_config.json';
+$configPath = __DIR__ . '/../data/turnier_config.json';
 $config = json_decode(file_get_contents($configPath), true);
 $requiredPassword = $config['result_entry_password'] ?? 'admin';
 $setsPerMatch = $config['sets_per_match'] ?? 2;

@@ -148,7 +148,7 @@ function calculateFinalStandings($db) {
 #logge("Placements nach DB Query: " . json_encode($placements), "green");
     
     // 2. Lade turnier_config für Gruppenplatzierungen
-    $configPath = __DIR__ . '/../turnier_config.json';
+    $configPath = __DIR__ . '/../data/turnier_config.json';
     $groupPlacementRules = [];
     if (file_exists($configPath)) {
         $config = json_decode(file_get_contents($configPath), true);
@@ -213,7 +213,7 @@ function calculateFinalStandings($db) {
         // NEU: Zeige für alle Finalplatzierungen (direkte Zahl) ein Badge mit Matchbezug
         if (is_numeric($placement)) {
             // Suche das zugehörige Match aus der Config (Finalrunde)
-            $configPath = __DIR__ . '/../turnier_config.json';
+            $configPath = __DIR__ . '/../data/turnier_config.json';
             $config = file_exists($configPath) ? json_decode(file_get_contents($configPath), true) : null;
             $finalMatchBadge = '';
             if ($config && isset($config['phases'])) {
@@ -436,7 +436,7 @@ $nextMatches = $db->query("
         $finalStandings = calculateFinalStandings($db);
 
         // Dummy-Matches (Platzierungszuweisungen ohne echtes Spiel) aus der Config holen
-        $configPath = __DIR__ . '/../turnier_config.json';
+        $configPath = __DIR__ . '/../data/turnier_config.json';
         $config = json_decode(file_get_contents($configPath), true);
         $dummyMatches = [];
         foreach ($config['phases'] as $phase) {
@@ -543,7 +543,7 @@ $nextMatches = $db->query("
         <div class="card-body">
             <?php 
             // Phasen dynamisch aus turnier_config.json laden
-            $configPath = __DIR__ . '/../turnier_config.json';
+            $configPath = __DIR__ . '/../data/turnier_config.json';
             $configJson = file_get_contents($configPath);
             $config = json_decode($configJson, true);
             $phases = [];

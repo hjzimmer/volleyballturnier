@@ -1,6 +1,6 @@
 <?php
 // Lade Logo-Pfad aus Konfiguration
-$config = json_decode(file_get_contents(__DIR__ . '/../turnier_config.json'), true);
+$config = json_decode(file_get_contents(__DIR__ . '/../data/turnier_config.json'), true);
 $logoPath = $config['logo_path'] ?? '';
 
 if (empty($logoPath)) {

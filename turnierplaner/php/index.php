@@ -57,6 +57,8 @@ foreach ($matches as $m) {
     $field = $m['field_number'] ?: 1;
     $matchesByTime[$time][$field] = $m;
 }
+logge("Geladene Matches by time: " . json_encode($matchesByTime));
+
 ?>
 
 <style>

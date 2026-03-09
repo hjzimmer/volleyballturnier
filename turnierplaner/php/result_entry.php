@@ -4,7 +4,7 @@ require_once 'helpFunctions.php';
 session_start();
 
 // Lade Passwort aus turnier_config.json
-$configPath = __DIR__ . '/../turnier_config.json';
+$configPath = __DIR__ . '/../data/turnier_config.json';
 $config = json_decode(file_get_contents($configPath), true);
 $requiredPassword = $config['result_entry_password'] ?? 'admin';
 $setsPerMatch = $config['sets_per_match'] ?? 2;
@@ -62,7 +62,7 @@ if (!isset($_SESSION['result_entry_authenticated']) || $_SESSION['result_entry_a
                     </form>
                     
                     <div class="mt-3 text-center">
-                        <small class="text-muted">Passwort in <code>turnier_config.json</code> konfiguriert</small>
+                        <small class="text-muted">Passwort in <code>data/turnier_config.json</code> konfiguriert</small>
                     </div>
                 </div>
             </div>

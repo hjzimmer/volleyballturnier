@@ -10,8 +10,8 @@ from referees import assign_group_referees
 
 if __name__ == "__main__":
     # Validierung der Turnier-Konfiguration
-    if not validate_turnier_config("turnier_config.json"):
-        print("[ABBRUCH] turnier_config.json ist fehlerhaft. Bitte korrigieren und erneut starten.")
+    if not validate_turnier_config("data/turnier_config.json"):
+        print("[ABBRUCH] data/turnier_config.json ist fehlerhaft. Bitte korrigieren und erneut starten.")
         sys.exit(1)
 
     init_db()
@@ -19,9 +19,9 @@ if __name__ == "__main__":
     seed_groups()
 
     from tournament_phases import prepare_all_group_matches_and_tables
-    group_tables = prepare_all_group_matches_and_tables("turnier_config.json")
+    group_tables = prepare_all_group_matches_and_tables("data/turnier_config.json")
 
-    create_final_matches("turnier_config.json", group_tables)
-    schedule_all_matches("turnier_config.json")
+    create_final_matches("data/turnier_config.json", group_tables)
+    schedule_all_matches("data/turnier_config.json")
     assign_group_referees()
     print("Gruppenphasen & Endrunde initialisiert.")

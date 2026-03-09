@@ -162,14 +162,14 @@ def interactive_rename():
     conn.close()
 
 def batch_rename_from_config():
-    """Benennt mehrere Teams aus team_config.json um"""
+    """Benennt mehrere Teams aus data/team_config.json um"""
     import json
     
     try:
-        with open('team_config.json', 'r', encoding='utf-8') as f:
+        with open('data/team_config.json', 'r', encoding='utf-8') as f:
             config = json.load(f)
     except FileNotFoundError:
-        print("❌ team_config.json nicht gefunden!")
+        print("❌ data/team_config.json nicht gefunden!")
         return
     
     conn = sqlite3.connect('data/tournament.db')
@@ -212,7 +212,7 @@ if __name__ == "__main__":
     print()
     print("Optionen:")
     print("  [1] Team interaktiv umbenennen")
-    print("  [2] Alle Teams aus team_config.json aktualisieren")
+    print("  [2] Alle Teams aus data/team_config.json aktualisieren")
     print("  [q] Beenden")
     print()
     

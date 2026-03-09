@@ -8,7 +8,7 @@ import json
 import sys
 from collections import Counter
 
-def validate_team_config(config_path='team_config.json'):
+def validate_team_config(config_path='data/team_config.json'):
     """
     Validiert die Team-Konfiguration
     """
@@ -98,7 +98,7 @@ def validate_team_config(config_path='team_config.json'):
         for i, error in enumerate(errors, 1):
             print(f"   {i}. {error}")
         print()
-        print("   -> Korrigiere diese Fehler in team_config.json vor dem Start!")
+        print("   -> Korrigiere diese Fehler in data/team_config.json vor dem Start!")
     elif warnings:
         print("[WARNUNG] VALIDIERUNG MIT WARNUNGEN")
         print()
@@ -119,7 +119,7 @@ def validate_team_config(config_path='team_config.json'):
     return len(errors) == 0
 
 
-def show_team_list(config_path='team_config.json'):
+def show_team_list(config_path='data/team_config.json'):
     """
     Zeigt alle Teams übersichtlich an
     """
@@ -154,8 +154,8 @@ def show_team_list(config_path='team_config.json'):
 if __name__ == "__main__":
     import argparse
     
-    parser = argparse.ArgumentParser(description="Validiert team_config.json")
-    parser.add_argument('--config', default='team_config.json', help='Pfad zur Config-Datei')
+    parser = argparse.ArgumentParser(description="Validiert data/team_config.json")
+    parser.add_argument('--config', default='data/team_config.json', help='Pfad zur Config-Datei')
     parser.add_argument('--show-teams', action='store_true', help='Zeigt Team-Liste an')
     args = parser.parse_args()
     
@@ -163,7 +163,7 @@ if __name__ == "__main__":
         show_team_list(args.config)
     
     is_valid_team = validate_team_config(args.config)
-    is_valid_turnier = validate_turnier_config("turnier_config.json")
+    is_valid_turnier = validate_turnier_config("data/turnier_config.json")
     if not is_valid_team or not is_valid_turnier:
         sys.exit(1)  # Exit mit Fehlercode
     else:

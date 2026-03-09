@@ -35,7 +35,7 @@ def show_menu():
     print()
     print("[VALIDIERUNG]")
     print("  [7] Validate Config - Konfiguration pruefen")
-    print("      Prueft team_config.json auf Fehler und zeigt Statistiken")
+    print("      Prueft data/team_config.json auf Fehler und zeigt Statistiken")
     print()
     print("[NUR ZUM TESTEN]")
     print("  [8] Fill Results - Testdaten generieren")
@@ -96,7 +96,7 @@ def run_action(action):
     elif action == "3" or action == "schedule":
         print("[SCHEDULE] Berechne Zeitplan neu...")
         print("-" * 70)
-        schedule_all_matches("turnier_config.json")
+        schedule_all_matches("data/turnier_config.json")
         print()
         print("[OK] Zeitplan erstellt")
         return True

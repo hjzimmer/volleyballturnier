@@ -40,7 +40,7 @@ function init_db(&$db) {
 // Teams in die Datenbank einfügen (Seed, wie seed.py)
 function seed_teams($db) {
 
-    $configFile = __DIR__ . '/../team_config.json';
+    $configFile = __DIR__ . '/../data/team_config.json';
     $teams = [];
     if (file_exists($configFile)) {
         try {
@@ -50,7 +50,7 @@ function seed_teams($db) {
                     $teams[] = [$team['id'], $team['name']];
                 }
             }
-            // Optional: echo "[OK] Lade ".count($teams)." Teams aus team_config.json\n";
+            // Optional: echo "[OK] Lade ".count($teams)." Teams aus data/team_config.json\n";
         } catch (Exception $e) {
             // Optional: echo "[WARNUNG] Fehler beim Laden von team_config.json: ".$e->getMessage()."\n";
             // Optional: echo "[OK] Verwende Standard-Teams\n";
@@ -75,7 +75,7 @@ function seed_teams($db) {
 
 // Gruppen und Gruppenzuordnung in die Datenbank einfügen (Seed, wie seed.py)
 function seed_groups($db) {
-    $configFile = __DIR__ . '/../turnier_config.json';
+    $configFile = __DIR__ . '/../data/turnier_config.json';
     $db->exec("DELETE FROM groups");
     $db->exec("DELETE FROM group_teams");
 
@@ -123,7 +123,7 @@ function seed_groups($db) {
             // Optional: echo "[WARNUNG] Fehler beim Laden der Gruppen: ".$e->getMessage()."\n";
         }
     } else {
-        // Optional: echo "[WARNUNG] turnier_config.json nicht gefunden. Keine Gruppen importiert.\n";
+        // Optional: echo "[WARNUNG] data/turnier_config.json nicht gefunden. Keine Gruppen importiert.\n";
     }
     // Optional: echo "Gruppen initialisiert.\n";
 }

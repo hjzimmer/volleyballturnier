@@ -1,12 +1,12 @@
 """
-Validiert turnier_config.json für beliebige Gruppen- und Finalphasen
+Validiert data/turnier_config.json für beliebige Gruppen- und Finalphasen
 Prüft Syntax, Schlüsselwörter und grundlegende Logik
 """
 
 import json
 import sys
 
-def validate_turnier_config(config_path='turnier_config.json'):
+def validate_turnier_config(config_path='data/turnier_config.json'):
     print("=" * 70)
     print("TURNIER-KONFIGURATION VALIDIERUNG")
     print("=" * 70)
@@ -93,7 +93,7 @@ def validate_turnier_config(config_path='turnier_config.json'):
         print("[FEHLER] VALIDIERUNG FEHLGESCHLAGEN\n")
         for i, error in enumerate(errors, 1):
             print(f"   {i}. {error}")
-        print("\n   -> Korrigiere diese Fehler in turnier_config.json vor dem Start!")
+        print("\n   -> Korrigiere diese Fehler in data/turnier_config.json vor dem Start!")
         return False
     if warnings:
         print("[WARNUNG] VALIDIERUNG MIT WARNUNGEN\n")
@@ -108,8 +108,8 @@ def validate_turnier_config(config_path='turnier_config.json'):
 
 if __name__ == "__main__":
     import argparse
-    parser = argparse.ArgumentParser(description="Validiert turnier_config.json")
-    parser.add_argument('--config', default='turnier_config.json', help='Pfad zur Config-Datei')
+    parser = argparse.ArgumentParser(description="Validiert data/turnier_config.json")
+    parser.add_argument('--config', default='data/turnier_config.json', help='Pfad zur Config-Datei')
     args = parser.parse_args()
     is_valid = validate_turnier_config(args.config)
     if not is_valid:
