@@ -1,12 +1,12 @@
 <?php
 /**
  * Countdown Timer - PHP Version
- * Liest Sound-Konfiguration aus config.json
+ * Liest Sound-Konfiguration aus ../../data/config.json
  * Start- und Alarmzeiten sind am oberen Rand einstellbar
  */
 
 // Konfigurationsdatei einlesen
-$configFile = 'config.json';
+$configFile = '../../data/config.json';
 $soundConfig = [];
 $defaultStart = 600;
 $log = '';
@@ -34,6 +34,9 @@ if (file_exists($configFile)) {
             }
         }
     }
+} else {
+    //echo sprintf('<p>Konfigurationsdatei nicht gefunden: %s</p>', $configFile); 
+    // echo sprintf('<p>Aktuelles Verzeichnis: %s</p>', getcwd());
 }
 
 // Hinweis: Der garantierte Alarm wird dynamisch in JavaScript hinzugefügt (bei startSeconds - 1)
@@ -700,7 +703,7 @@ function parseTimeValue($value) {
         
         function playSound(soundConfig) {
             stopAllSounds();
-            
+console.log(`playSound called with config: ${JSON.stringify(soundConfig)}`);
             if (!soundConfig.file) return;
             
             // Erstelle AudioContext falls noch nicht vorhanden
@@ -721,6 +724,7 @@ function parseTimeValue($value) {
                 })
                 .catch(err => {
                     // Fehler beim Laden/Dekodieren
+console.error('Fehler beim Laden oder Dekodieren der Audiodatei:', err);
                 });
         }
         
@@ -741,7 +745,8 @@ function parseTimeValue($value) {
             audioStartTime = audioContext.currentTime - offset;
             currentAudioSource.start(0, offset);
             isAudioPlaying = true;
-            
+console.log(`startAudioPlayback called with config: ${offset}s offset, ${fade}s fade`);
+        
             // Fade-In
             if (fade > 0) {
                 const fadeEndTime = audioContext.currentTime + fade;
