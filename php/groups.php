@@ -64,6 +64,9 @@
             padding: 0.3rem 0.2rem;
         }
     }
+    .team-loser {
+        color: #f08080 !important;
+    }
   </style>
 </head>
 <body class="container py-4">
@@ -151,6 +154,7 @@ foreach ($phases as $phase):
                     <?php
                     $matchesStmt = $db->prepare("
                         SELECT m.id, m.start_time, m.field_number, m.finished,
+                               m.team1_id, m.team2_id, m.winner_id, m.loser_id,
                                t1.name AS team1, t2.name AS team2
                         FROM matches m
                         JOIN teams t1 ON t1.id = m.team1_id
@@ -176,11 +180,19 @@ foreach ($phases as $phase):
                                     $resultDisplay = '<span class="badge bg-success">' . implode(' | ', $setScores) . '</span>';
                                 }
                             }
+                            $isTeam1Winner = ($match['finished'] && $match['winner_id'] == $match['team1_id']);
+                            $isTeam2Winner = ($match['finished'] && $match['winner_id'] == $match['team2_id']);
+                            $isTeam1Loser  = ($match['finished'] && $match['loser_id']  == $match['team1_id']);
+                            $isTeam2Loser  = ($match['finished'] && $match['loser_id']  == $match['team2_id']);
                     ?>
                         <tr>
                             <td><?= $time ?></td>
                             <td><span class="badge bg-info"><?= $field ?></span></td>
-                            <td><?= htmlspecialchars($match['team1']) ?> - <?= htmlspecialchars($match['team2']) ?></td>
+                            <td>
+                                <span class="<?= $isTeam1Winner ? 'text-success fw-bold' : ($isTeam1Loser ? 'team-loser' : '') ?>"><?= htmlspecialchars($match['team1']) ?></span>
+                                <strong class="text-primary"> - </strong>
+                                <span class="<?= $isTeam2Winner ? 'text-success fw-bold' : ($isTeam2Loser ? 'team-loser' : '') ?>"><?= htmlspecialchars($match['team2']) ?></span>
+                            </td>
                             <td><?= $resultDisplay ?></td>
                         </tr>
                     <?php 

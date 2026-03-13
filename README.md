@@ -71,7 +71,7 @@ Beispielstruktur:
 ---
 
 ## Hinweise
-- Änderungen an Teams oder Turnierstruktur erfordern ggf. ein Re-Init über das Webinterface oder per Skript (`python cli.py init`).
+- Änderungen an Teams oder Turnierstruktur erfordern ggf. ein Re-Init über das Webinterface oder per Skript (`python3 cli.py init`) im Docker image.
 - Für Testzwecke können Zufallsergebnisse generiert werden.
 - Die gesamte Verwaltung ist webbasiert, Python-Skripte stehen für Spezialfälle zur Verfügung.
 
@@ -236,8 +236,15 @@ Das Python-Interface wird über das Skript `cli.py` im Hauptverzeichnis gestarte
 
 **Start:**
 ```bash
-python cli.py
+python3 cli.py
 ```
+
+> [!NOTE]
+> Zur Ausführung von Python innerhalb des Docker, erst verbinden und dann die py Scripte ausführen.
+> ```bash
+> docker exec -it turnierplaner bash
+> ```
+
 
 **Hauptoptionen im Menü:**
 - **[1] Init – Turnier neu initialisieren**
@@ -264,14 +271,14 @@ python cli.py
 
 **Weitere Möglichkeiten:**
 - Die meisten Funktionen können auch direkt als Kommandozeilen-Argument ausgeführt werden, z.B.:
-  - `python cli.py init`
-  - `python cli.py recreate_finals`
-  - `python cli.py schedule`
-  - `python cli.py assign_group_refs`
-  - `python cli.py assign_final_refs`
-  - `python cli.py rename_team`
-  - `python cli.py validate`
-  - `python cli.py fill_results`
+  - `python3 cli.py init`
+  - `python3 cli.py recreate_finals`
+  - `python3 cli.py schedule`
+  - `python3 cli.py assign_group_refs`
+  - `python3 cli.py assign_final_refs`
+  - `python3 cli.py rename_team`
+  - `python3 cli.py validate`
+  - `python3 cli.py fill_results`
 
 **Spezialskripte:**
 - Für fortgeschrittene oder spezielle Aufgaben stehen weitere Python-Skripte zur Verfügung, z.B.:

@@ -211,6 +211,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['init_tournament'])) {
                 $teamConfig['teams'] = $newTeams;
                 $teamConfig['warteliste'] = $newWarteliste;
                 file_put_contents($teamConfigPath, json_encode($teamConfig, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE));
+                // Teamnamen auch in der Datenbank aktualisieren
+                $stmt = $db->prepare('UPDATE teams SET name = :name WHERE id = :id');
+                foreach ($newTeams as $t) {
+                    $stmt->execute([':name' => $t['name'], ':id' => $t['id']]);
+                }
                 echo '<div class="alert alert-success mt-3">Teams erfolgreich gespeichert!</div>';
                 // Reload für aktuelle Anzeige
                 $teams = $newTeams;
