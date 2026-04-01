@@ -25,6 +25,7 @@ if (!isset($_SESSION['result_entry_authenticated']) || $_SESSION['result_entry_a
 $matches = $db->query("
     SELECT m.id, m.phase, m.round, m.field_number, m.start_time,
            m.team1_id, m.team2_id, m.team1_ref, m.team2_ref,
+           m.referee_team_id, 
            t1.name as team1_name, t2.name as team2_name
     FROM matches m
     LEFT JOIN teams t1 ON m.team1_id = t1.id
@@ -69,6 +70,7 @@ header('Content-Disposition: inline');
             font-family: Arial, sans-serif;
             font-size: 9pt;
             line-height: 1.2;
+            color: #1f2933;
         }
         
         .page {
@@ -76,7 +78,8 @@ header('Content-Disposition: inline');
             width: 100%;
             display: grid;
             grid-template-columns: 1fr 1fr;
-            gap: 8px;
+            column-gap: 14px;
+            row-gap: 16px;
             align-content: start;
         }
         
@@ -89,21 +92,22 @@ header('Content-Disposition: inline');
             text-align: center;
             margin-bottom: 8px;
             padding-bottom: 6px;
-            border-bottom: 2px solid #000;
+            border-bottom: 2px solid #9fb5c3;
         }
         
         .page-footer {
             grid-column: 1 / -1;
             margin-top: 8px;
             padding: 6px;
-            border: 1px solid #666;
-            background: #f9f9f9;
+            border: 1px solid #b7c8d3;
+            background: #f3f8fb;
             font-size: 7pt;
             text-align: center;
         }
         
         .match-card {
-            border: 2px solid #000;
+            border: 1px solid #b8c9cf;
+            border-left: 4px solid #7da2b8;
             padding: 5px;
             background: white;
             page-break-inside: avoid;
@@ -113,11 +117,12 @@ header('Content-Disposition: inline');
             display: flex;
             justify-content: space-between;
             align-items: center;
-            border-bottom: 1px solid #333;
+            border-bottom: 1px solid #c7d6de;
             padding-bottom: 3px;
             margin-bottom: 4px;
             font-weight: bold;
             font-size: 9pt;
+            color: #284b63;
         }
         
         .match-id {
@@ -127,6 +132,8 @@ header('Content-Disposition: inline');
         
         .match-info {
             text-align: right;
+        }
+        .match-info .temp {
             font-size: 7pt;
         }
         
@@ -139,14 +146,23 @@ header('Content-Disposition: inline');
             align-items: center;
             margin: 2px 0;
             padding: 3px;
-            border: 1px solid #ccc;
-            background: #f9f9f9;
+            border: 1px solid #d4dfe5;
+            border-radius: 2px;
+        }
+
+        .team-row.team-row-1 {
+            background: #eef6fb;
+        }
+
+        .team-row.team-row-2 {
+            background: #f2f8f1;
         }
         
         .team-label {
             font-weight: bold;
             width: 45px;
             font-size: 8pt;
+            color: #48606f;
         }
         
         .team-name {
@@ -172,21 +188,33 @@ header('Content-Disposition: inline');
             font-weight: bold;
             text-align: center;
             padding: 2px;
-            background: #e0e0e0;
-            border: 1px solid #666;
+            background: #dfeaf1;
+            border: 1px solid #aebfc9;
+            color: #35566c;
+        }
+        .result-header .temp {
             font-size: 7pt;
         }
-        
+
         .result-label {
             font-weight: bold;
             padding: 4px 3px;
             font-size: 8pt;
+            color: #48606f;
         }
         
         .result-box {
-            border: 2px solid #000;
-            height: 24px;
-            background: white;
+            border: 1px solid #9fb2bf;
+            height: 34px;
+            background: #ffffff;
+        }
+
+        .result-box.team1-box {
+            background: #f9fcff;
+        }
+
+        .result-box.team2-box {
+            background: #fbfdf9;
         }
         
         .signature-section {
@@ -195,7 +223,10 @@ header('Content-Disposition: inline');
             gap: 5px;
             margin-top: 4px;
             padding-top: 4px;
-            border-top: 1px solid #ccc;
+            border-top: 1px solid #d7e2e8;
+        }
+        .signature-section .temp {
+            grid-template-columns: 1fr 1fr;
         }
         
         .signature-box {
@@ -204,13 +235,13 @@ header('Content-Disposition: inline');
         }
         
         .signature-label {
-            font-size: 6pt;
-            color: #666;
+            font-size: 8pt;
+            color: #6a7f8d;
             margin-bottom: 1px;
         }
         
         .signature-line {
-            border-bottom: 1px solid #333;
+            border-bottom: 1px solid #8ea2b0;
             height: 16px;
         }
         
@@ -233,6 +264,11 @@ header('Content-Disposition: inline');
             body {
                 print-color-adjust: exact;
                 -webkit-print-color-adjust: exact;
+                background: white;
+            }
+
+            .page {
+                box-shadow: none;
             }
         }
         
@@ -243,7 +279,7 @@ header('Content-Disposition: inline');
             }
             
             .page {
-                background: white;
+                background: #ffffff;
                 max-width: 210mm;
                 min-height: 297mm;
                 margin: 0 auto 20px;
@@ -307,6 +343,7 @@ for ($page = 0; $page < $pageCount; $page++) {
     foreach ($pageMatches as $m) {
         $team1 = resolveTeamToName($db, $m['team1_id'], $m['team1_ref']);
         $team2 = resolveTeamToName($db, $m['team2_id'], $m['team2_ref']);
+        $refereeTeam = resolveTeamToName($db, $m['referee_team_id'], NULL);
 
         $round = $m['phase'] === 'group' ? 'Vorrunde' : $m['round'];
         $time = $m['start_time'] ? date('H:i', strtotime($m['start_time'])) : '-';
@@ -320,11 +357,11 @@ for ($page = 0; $page < $pageCount; $page++) {
             </div>
             
             <div class="teams">
-                <div class="team-row">
+                <div class="team-row team-row-1">
                     <span class="team-label">Team 1:</span>
                     <span class="team-name"><?= htmlspecialchars($team1) ?></span>
                 </div>
-                <div class="team-row">
+                <div class="team-row team-row-2">
                     <span class="team-label">Team 2:</span>
                     <span class="team-name"><?= htmlspecialchars($team2) ?></span>
                 </div>
@@ -338,22 +375,22 @@ for ($page = 0; $page < $pageCount; $page++) {
                 
                 <div class="result-label">Team 1</div>
                 <?php for ($s = 1; $s <= $setsPerMatch; $s++) { ?>
-                <div class="result-box"></div>
+                <div class="result-box team1-box"></div>
                 <?php } ?>
                 
                 <div class="result-label">Team 2</div>
                 <?php for ($s = 1; $s <= $setsPerMatch; $s++) { ?>
-                <div class="result-box"></div>
+                <div class="result-box team2-box"></div>
                 <?php } ?>
             </div>
             
             <div class="signature-section">
                 <div class="signature-box">
-                    <div class="signature-label">Schiedsrichter/in:</div>
-                    <div class="signature-line"></div>
+                    <div class="signature-label">Schiedsrichter:</div>
+                    <div class="signature-line"><?= htmlspecialchars($refereeTeam) ?></div>
                 </div>
                 <div class="signature-box">
-                    <div class="signature-label">Datum/Uhrzeit:</div>
+                    <div class="signature-label">Unterschrift:</div>
                     <div class="signature-line"></div>
                 </div>
             </div>
