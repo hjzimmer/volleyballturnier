@@ -1,4 +1,3 @@
-
 <?php
 require_once 'setup_db_tools.php';
 
