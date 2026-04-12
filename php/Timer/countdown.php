@@ -451,9 +451,6 @@ function parseTimeValue($value) {
         let triggeredAlerts = new Set();
         let currentAudio = null;
         let fadeInterval = null;
-        let timerControlUrlAvailable = null;
-        let timerControlUrlAlertShown = false;
-        
         // Garantierter Alarm-Sound (wird dynamisch hinzugefügt)
         const guaranteedAlarmSound = {
             file: 'sounds/alarm-2.mp3',
@@ -475,36 +472,22 @@ function parseTimeValue($value) {
 
         // Initialisiere Anzeige
         updateDisplay();
-        testTimerControlUrlAccess();
 
-        function showTimerControlUrlError() {
-            if (timerControlUrlAlertShown) {
-                return;
-            }
-
-            timerControlUrlAlertShown = true;
-            timerControlWarning.innerHTML = `<strong>Timer-Control-URL nicht erreichbar:</strong> ${timerControlUrl}`;
-            timerControlWarning.classList.add('visible');
-        }
-
-        async function testTimerControlUrlAccess() {
+        // Wrapper: führt fetch auf timerControlUrl aus und aktualisiert Banner
+        async function timerControlFetch(options = {}) {
             const controller = new AbortController();
             const timeoutId = setTimeout(() => controller.abort(), 3000);
-
             try {
                 const response = await fetch(timerControlUrl, {
-                    method: 'GET',
-                    cache: 'no-store',
+                    ...options,
                     signal: controller.signal
                 });
-
-                timerControlUrlAvailable = response.ok;
-                if (!response.ok) {
-                    showTimerControlUrlError();
-                }
-            } catch (error) {
-                timerControlUrlAvailable = false;
-                showTimerControlUrlError();
+                timerControlWarning.classList.remove('visible');
+                return response;
+            } catch (err) {
+                timerControlWarning.innerHTML = `<strong>&#9888; Timer-Control-URL nicht erreichbar:</strong> ${timerControlUrl}`;
+                timerControlWarning.classList.add('visible');
+                return null;
             } finally {
                 clearTimeout(timeoutId);
             }
@@ -551,24 +534,16 @@ function parseTimeValue($value) {
 
         // Sende aktuelle Zeit an timer_control.php
         function sendTimerStatus(time, running, paused) {
-            if (timerControlUrlAvailable === false) {
-                return;
-            }
-
-            try {
-                fetch(timerControlUrl, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        command: 'status',
-                        time: time,
-                        running: running,
-                        paused: paused
-                    })
-                });
-            } catch (e) {
-                // Fehler ignorieren, damit kein JS-Abbruch
-            }
+            timerControlFetch({
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    command: 'status',
+                    time: time,
+                    running: running,
+                    paused: paused
+                })
+            });
         }
         
         function startTimer() {
@@ -894,12 +869,9 @@ console.log(`startAudioPlayback called with config: ${offset}s offset, ${fade}s 
         let lastCommandTimestamp = null;
         
         async function checkRemoteCommands() {
-            if (timerControlUrlAvailable === false) {
-                return;
-            }
-
             try {
-                const response = await fetch(timerControlUrl);
+                const response = await timerControlFetch({ method: 'GET' });
+                if (!response) return;
                 const data = await response.json();
                 // Prüfe ob neuer Befehl vorhanden
                 if (data.command && data.timestamp && data.timestamp !== lastCommandTimestamp) {
@@ -927,7 +899,7 @@ console.log(`startAudioPlayback called with config: ${offset}s offset, ${fade}s 
                     }
                     
                     // Lösche Befehl nach Ausführung
-                    await fetch(timerControlUrl, { method: 'DELETE' });
+                    await timerControlFetch({ method: 'DELETE' });
                 }
             } catch (error) {
                 console.error('Remote command check failed:', error);
