@@ -4,12 +4,31 @@
  * Ermöglicht Remote-Steuerung des Countdown-Timers
  */
 
+header('Access-Control-Allow-Origin: *');
+header('Access-Control-Allow-Methods: GET, POST, DELETE, OPTIONS');
+header('Access-Control-Allow-Headers: Content-Type');
 header('Content-Type: application/json');
 
+if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
+    http_response_code(204);
+    exit;
+}
+
 $controlFile = __DIR__ . '/timer_commands.json';
+$statusFile = __DIR__ . '/timer_status.json';
 
 // GET: Befehl abrufen
 if ($_SERVER['REQUEST_METHOD'] === 'GET') {
+    if (isset($_GET['view']) && $_GET['view'] === 'status') {
+        if (file_exists($statusFile)) {
+            $data = json_decode(file_get_contents($statusFile), true);
+            echo json_encode($data);
+        } else {
+            echo json_encode(['time' => null, 'running' => false, 'paused' => false, 'timestamp' => null]);
+        }
+        exit;
+    }
+
     if (file_exists($controlFile)) {
         $data = json_decode(file_get_contents($controlFile), true);
         echo json_encode($data);
@@ -33,7 +52,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $allowedCommands = ['start', 'pause', 'reset'];
     if ($command === 'status') {
         // Timer-Status speichern
-        $statusFile = __DIR__ . '/timer_status.json';
         $data = [
             'time' => $input['time'],
             'running' => $input['running'],

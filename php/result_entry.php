@@ -9,6 +9,18 @@ $config = json_decode(file_get_contents($configPath), true);
 $requiredPassword = $config['result_entry_password'] ?? 'admin';
 $setsPerMatch = $config['sets_per_match'] ?? 2;
 $setMinutes = $config['set_minutes'] ?? 10;
+$timerConfigPath = __DIR__ . '/../data/config.json';
+$timerControlUrl = 'Timer/timer_control.php';
+
+if (file_exists($timerConfigPath)) {
+    $timerConfig = json_decode(file_get_contents($timerConfigPath), true);
+    if ($timerConfig && json_last_error() === JSON_ERROR_NONE && isset($timerConfig['timerControlUrl']) && is_string($timerConfig['timerControlUrl'])) {
+        $configuredTimerControlUrl = trim($timerConfig['timerControlUrl']);
+        if ($configuredTimerControlUrl !== '') {
+            $timerControlUrl = $configuredTimerControlUrl;
+        }
+    }
+}
 
 // Logout-Funktion
 if (isset($_GET['logout'])) {
@@ -989,6 +1001,13 @@ $allTeams = $db->query("SELECT id, name FROM teams ORDER BY name")->fetchAll();
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
 <script>
+const timerControlUrl = <?php echo json_encode($timerControlUrl); ?>;
+const timerStatusUrl = (() => {
+    const controlUrl = new URL(timerControlUrl, window.location.href);
+    controlUrl.searchParams.set('view', 'status');
+    return controlUrl.toString();
+})();
+
 document.addEventListener('DOMContentLoaded', function() {
   const selects = document.querySelectorAll('.referee-select');
   
@@ -1041,7 +1060,7 @@ async function sendTimerCommand(command, buttonElement) {
         payload.startTime = startTimeInput.value;
       }
     }
-    await fetch('Timer/timer_control.php', {
+    await fetch(timerControlUrl, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json'
@@ -1056,7 +1075,9 @@ async function sendTimerCommand(command, buttonElement) {
 // Timer-Status clever anzeigen
 async function updateTimerStatusBox() {
   try {
-    const resp = await fetch('Timer/timer_status.json?_=' + Date.now());
+        const statusUrl = new URL(timerStatusUrl);
+        statusUrl.searchParams.set('_', Date.now().toString());
+        const resp = await fetch(statusUrl.toString());
     if (!resp.ok) throw new Error('Status nicht erreichbar');
     const data = await resp.json();
     const box = document.getElementById('timerStatusBox');

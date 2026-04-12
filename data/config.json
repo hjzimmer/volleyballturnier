@@ -1,5 +1,6 @@
 {
   "start": "1:02",
+  "timerControlUrl": "http://localhost:8081/timer_control.php",
   "alerts_disabled": [
     {
       "id": 1,

@@ -9,6 +9,7 @@
 $configFile = '../../data/config.json';
 $soundConfig = [];
 $defaultStart = 600;
+$timerControlUrl = 'timer_control.php';
 $log = '';
 
 if (file_exists($configFile)) {
@@ -19,6 +20,13 @@ if (file_exists($configFile)) {
         // Lese Startzeit
         if (isset($config['start'])) {
             $defaultStart = parseTimeValue($config['start']);
+        }
+
+        if (isset($config['timerControlUrl']) && is_string($config['timerControlUrl'])) {
+            $configuredTimerControlUrl = trim($config['timerControlUrl']);
+            if ($configuredTimerControlUrl !== '') {
+                $timerControlUrl = $configuredTimerControlUrl;
+            }
         }
         
         // Lese Alerts
@@ -229,6 +237,24 @@ function parseTimeValue($value) {
             color: #aaa;
             margin-left: 10px;
         }
+
+        .timer-control-warning {
+            display: none;
+            background-color: #5c1616;
+            color: #fff3f3;
+            padding: 12px 20px;
+            text-align: center;
+            font-size: 14px;
+            border-bottom: 1px solid #8a2a2a;
+        }
+
+        .timer-control-warning.visible {
+            display: block;
+        }
+
+        .timer-control-warning strong {
+            color: #ffd3d3;
+        }
         
         /* Match Info Section */
         .match-info-section {
@@ -397,6 +423,8 @@ function parseTimeValue($value) {
             <button class="btn-reset" onclick="resetTimer()">🔄 Reset</button>
         </div>
     </div>
+
+    <div class="timer-control-warning" id="timerControlWarning"></div>
     
     <div class="alert-info" id="alertInfo"></div>
     
@@ -413,6 +441,7 @@ function parseTimeValue($value) {
     <script>
         // Sound-Konfiguration aus PHP
         const soundConfig = <?php echo json_encode($soundConfig); ?>;
+        const timerControlUrl = <?php echo json_encode($timerControlUrl); ?>;
         
         let startSeconds = <?php echo $defaultStart; ?>;
         let currentTime = startSeconds;
@@ -422,6 +451,8 @@ function parseTimeValue($value) {
         let triggeredAlerts = new Set();
         let currentAudio = null;
         let fadeInterval = null;
+        let timerControlUrlAvailable = null;
+        let timerControlUrlAlertShown = false;
         
         // Garantierter Alarm-Sound (wird dynamisch hinzugefügt)
         const guaranteedAlarmSound = {
@@ -439,10 +470,45 @@ function parseTimeValue($value) {
         const timeInputs = document.querySelector('.time-inputs');
         //timeInputs.style.display = 'none';  // makes time inputs invisible
         const alertInfo = document.getElementById('alertInfo');
+        const timerControlWarning = document.getElementById('timerControlWarning');
         alertInfo.style.display = 'none'; // Alert-Info set zu inaktiv
 
         // Initialisiere Anzeige
         updateDisplay();
+        testTimerControlUrlAccess();
+
+        function showTimerControlUrlError() {
+            if (timerControlUrlAlertShown) {
+                return;
+            }
+
+            timerControlUrlAlertShown = true;
+            timerControlWarning.innerHTML = `<strong>Timer-Control-URL nicht erreichbar:</strong> ${timerControlUrl}`;
+            timerControlWarning.classList.add('visible');
+        }
+
+        async function testTimerControlUrlAccess() {
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), 3000);
+
+            try {
+                const response = await fetch(timerControlUrl, {
+                    method: 'GET',
+                    cache: 'no-store',
+                    signal: controller.signal
+                });
+
+                timerControlUrlAvailable = response.ok;
+                if (!response.ok) {
+                    showTimerControlUrlError();
+                }
+            } catch (error) {
+                timerControlUrlAvailable = false;
+                showTimerControlUrlError();
+            } finally {
+                clearTimeout(timeoutId);
+            }
+        }
         
         function handleCheckboxChange(checkbox) {
             if (checkbox.checked) {
@@ -485,8 +551,12 @@ function parseTimeValue($value) {
 
         // Sende aktuelle Zeit an timer_control.php
         function sendTimerStatus(time, running, paused) {
+            if (timerControlUrlAvailable === false) {
+                return;
+            }
+
             try {
-                fetch('timer_control.php', {
+                fetch(timerControlUrl, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
@@ -824,8 +894,12 @@ console.log(`startAudioPlayback called with config: ${offset}s offset, ${fade}s 
         let lastCommandTimestamp = null;
         
         async function checkRemoteCommands() {
+            if (timerControlUrlAvailable === false) {
+                return;
+            }
+
             try {
-                const response = await fetch('timer_control.php');
+                const response = await fetch(timerControlUrl);
                 const data = await response.json();
                 // Prüfe ob neuer Befehl vorhanden
                 if (data.command && data.timestamp && data.timestamp !== lastCommandTimestamp) {
@@ -853,7 +927,7 @@ console.log(`startAudioPlayback called with config: ${offset}s offset, ${fade}s 
                     }
                     
                     // Lösche Befehl nach Ausführung
-                    await fetch('timer_control.php', { method: 'DELETE' });
+                    await fetch(timerControlUrl, { method: 'DELETE' });
                 }
             } catch (error) {
                 console.error('Remote command check failed:', error);

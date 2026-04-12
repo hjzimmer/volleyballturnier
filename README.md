@@ -218,6 +218,20 @@ Mit `setup_config_edit.php` können zentrale Einstellungen und Konfigurationsdat
 Das System ist mit einem webbasierten Timer gekoppelt, der über `php/Timer/index.php` und `php/Timer/countdown.php` gesteuert wird:
 - Der Timer zeigt die aktuelle Restzeit für das laufende Match an
 - Start, Pause, Reset und Zeitvorgaben können über das Webinterface gesteuert werden
+
+### Lokaler Timer-Control-Server
+
+Wenn `countdown.php` auf einem entfernten Webserver liegt, aber die Status-Updates lokal auf dem Anzeige-PC bleiben sollen, kann `timer_control.php` separat auf einem lokalen PHP-Webserver laufen.
+
+Vorgehen:
+1. `php/Timer/start_local_timer_control.bat` auf dem Anzeige-PC starten
+2. In `data/config.json` die URL setzen: `"timerControlUrl": "http://127.0.0.1:8081/timer_control.php"`
+3. `countdown.php` im Browser neu laden
+
+Wichtig:
+- `localhost` bzw. `127.0.0.1` meint immer den Rechner, auf dem der Browser läuft
+- Das reduziert den Traffic fuer `sendTimerStatus()` und das Polling auf das lokale Netzwerkinterface
+- Der lokale Server muss auf genau dem PC laufen, auf dem auch die Countdown-Seite angezeigt wird
 - Die Zeitsteuerung ist mit dem Spielplan und den Ergebnissen verknüpft: Nach Abschluss eines Matches kann automatisch der nächste Countdown gestartet werden
 - Der Status des Timers wird in `timer_status.json` gespeichert und von allen relevanten Seiten (z.B. Spielplan, Ergebniseingabe) angezeigt
 
