@@ -570,6 +570,15 @@ function parseTimeValue($value) {
             // Aktualisiere Alarm-Zeiten (inkl. garantiertem Alarm)
             updateAlertTimes();
             //addGuaranteedAlarm();
+
+            // Plane Zufallssound pro Alert einmalig für diesen Run
+            planAlertSoundsForRun();
+            
+            // Initialisiere AudioContext und lade Sounds vorab
+            if (!audioContext) {
+                audioContext = new (window.AudioContext || window.webkitAudioContext)();
+            }
+            preloadAllSounds();
             
             isRunning = true;
             isPaused = false;
@@ -717,14 +726,14 @@ function parseTimeValue($value) {
                 if (currentTime === alert.alertTime && !triggeredAlerts.has(alertKey)) {
                     triggeredAlerts.add(alertKey);
                     
-                    // Wähle zufälligen Sound aus der Liste
-                    if (alert.sounds.length > 0) {
-                        const randomSound = alert.sounds[Math.floor(Math.random() * alert.sounds.length)];
-                        playSound(randomSound);
+                    // Nutze den beim Start geplanten Sound
+                    const selectedSound = plannedSoundsByAlert.get(alertKey);
+                    if (selectedSound) {
+                        playSound(selectedSound);
                         
                         // Zeige Alert-Info an
-                        const fileName = randomSound.file.split('/').pop();
-                        alertInfo.innerHTML = `<span> Alert ${idx + 1} bei ${formatTime(alert.alertTime)}: </span><span class="filename">${fileName}</span><span class="params"> (Offset: ${randomSound.offset}s, Fade: ${randomSound.fade}s)</span>`;
+                        const fileName = selectedSound.file.split('/').pop();
+                        alertInfo.innerHTML = `<span> Alert ${idx + 1} bei ${formatTime(alert.alertTime)}: </span><span class="filename">${fileName}</span><span class="params"> (Offset: ${selectedSound.offset}s, Fade: ${selectedSound.fade}s)</span>`;
                         alertInfo.classList.add('visible');
                         
                         // Info nach 10 Sekunden ausblenden
@@ -745,57 +754,131 @@ function parseTimeValue($value) {
         let audioPausedAt = 0;
         let currentSoundConfig = null;
         let isAudioPlaying = false;
+        let audioBufferCache = new Map();  // file path → AudioBuffer
+        let preloadInProgress = false;
+        let plannedSoundsByAlert = new Map(); // alertKey -> selected sound for current run
+        let plannedFilesForRun = new Set();   // selected files for current run
+        
+        
+        // ============================================
+        // PRELOAD-FUNKTIONEN
+        // ============================================
+        function planAlertSoundsForRun() {
+            plannedSoundsByAlert.clear();
+            plannedFilesForRun.clear();
+
+            soundConfig.forEach((alert, idx) => {
+                if (!Array.isArray(alert.sounds) || alert.sounds.length === 0) {
+                    return;
+                }
+
+                const selectedSound = alert.sounds[Math.floor(Math.random() * alert.sounds.length)];
+                const alertKey = `${alert.alertTime}-${idx}`;
+                plannedSoundsByAlert.set(alertKey, selectedSound);
+
+                if (selectedSound.file) {
+                    plannedFilesForRun.add(selectedSound.file);
+                    console.log(`->  ${selectedSound.file} added for preload`);
+                }
+            });
+        }
+
+        async function preloadAllSounds() {
+            if (preloadInProgress) return;
+            preloadInProgress = true;
+            
+            // Lade und dekodiere alle PARALLEL
+            const loadPromises = Array.from(plannedFilesForRun).map(filePath =>
+                loadAndDecodeSound(filePath)
+            );
+            
+            try {
+                await Promise.all(loadPromises);
+                console.log(`✓ ${plannedFilesForRun.size} geplante Sounds vorab geladen`);
+            } catch (err) {
+                console.error('Fehler beim Preload:', err);
+            } finally {
+                preloadInProgress = false;
+            }
+        }
+        
+        async function loadAndDecodeSound(filePath) {
+            // Wenn bereits im Cache, überspringe
+            if (audioBufferCache.has(filePath)) {
+                return;
+            }
+            
+            try {
+                const response = await fetch(filePath);
+                if (!response.ok) throw new Error(`HTTP ${response.status}`);
+                
+                const arrayBuffer = await response.arrayBuffer();
+                const audioBuffer = await audioContext.decodeAudioData(arrayBuffer);
+                audioBufferCache.set(filePath, audioBuffer);
+                console.log(`✓ Geladen: ${filePath.split('/').pop()}`);
+            } catch (err) {
+                console.error(`✗ Preload fehlgeschlagen: ${filePath}`, err);
+            }
+        }
         
         function playSound(soundConfig) {
             stopAllSounds();
-console.log(`playSound called with config: ${JSON.stringify(soundConfig)}`);
+            
             if (!soundConfig.file) return;
             
-            // Erstelle AudioContext falls noch nicht vorhanden
-            if (!audioContext) {
-                audioContext = new (window.AudioContext || window.webkitAudioContext)();
+            // Prüfe ob Sound im Cache vorhanden
+            const audioBuffer = audioBufferCache.get(soundConfig.file);
+            if (!audioBuffer) {
+                console.warn(`✗ Sound nicht im Cache: ${soundConfig.file}`);
+                return;
             }
             
-            // Speichere Config für Resume
+            // Speichere Config (z. B. für Pause/Resume)
             currentSoundConfig = soundConfig;
+            currentAudioBuffer = audioBuffer;
             
-            // Lade Audio-Datei als ArrayBuffer
-            fetch(soundConfig.file)
-                .then(response => response.arrayBuffer())
-                .then(arrayBuffer => audioContext.decodeAudioData(arrayBuffer))
-                .then(audioBuffer => {
-                    currentAudioBuffer = audioBuffer;
-                    startAudioPlayback(soundConfig.offset || 0, soundConfig.fade || 0);
-                })
-                .catch(err => {
-                    // Fehler beim Laden/Dekodieren
-console.error('Fehler beim Laden oder Dekodieren der Audiodatei:', err);
-                });
+            // SOFORT abspielen (kein Download/Decode warten)
+            startAudioPlayback(
+                soundConfig.offset || 0,
+                soundConfig.fade || 0
+            );
         }
         
-        function startAudioPlayback(offset, fade) {
-            // Erstelle Audio Source
+        function startAudioPlayback(offsetSeconds, fadeInSeconds) {
+            // Erstelle Source
             currentAudioSource = audioContext.createBufferSource();
             currentAudioSource.buffer = currentAudioBuffer;
             
-            // Erstelle Gain Node für Lautstärkekontrolle
+            // Erstelle Gain Node für Fade-Kontrolle
             currentGainNode = audioContext.createGain();
-            currentGainNode.gain.value = fade > 0 ? 0 : 1;
             
-            // Verbinde: Source -> Gain -> Destination
+            // Verbinde: Source → Gain → Output
             currentAudioSource.connect(currentGainNode);
             currentGainNode.connect(audioContext.destination);
             
-            // Starte Wiedergabe mit Offset
-            audioStartTime = audioContext.currentTime - offset;
-            currentAudioSource.start(0, offset);
+            // ⚠️ WICHTIG: Starte mit Gain = 0 WENN Fade gewünscht
+            if (fadeInSeconds > 0) {
+                currentGainNode.gain.value = 0;
+            } else {
+                currentGainNode.gain.value = 1;  // Volle Lautstärke sofort
+            }
+            
+            // Starte Audio-Wiedergabe ab offset Sekunden
+            audioStartTime = audioContext.currentTime - offsetSeconds;
+            currentAudioSource.start(0, offsetSeconds);
             isAudioPlaying = true;
-console.log(`startAudioPlayback called with config: ${offset}s offset, ${fade}s fade`);
-        
-            // Fade-In
-            if (fade > 0) {
-                const fadeEndTime = audioContext.currentTime + fade;
-                currentGainNode.gain.linearRampToValueAtTime(1, fadeEndTime);
+            
+            console.log(`▶️ Play: ${currentSoundConfig.file.split('/').pop()} @ offset=${offsetSeconds}s, fade=${fadeInSeconds}s`);
+            
+            // Fade-In ab Offset: 0 → 1 über fadeInSeconds
+            if (fadeInSeconds > 0) {
+                const now = audioContext.currentTime;
+                const fadeEndTime = now + fadeInSeconds;
+                
+                // Setze Startwert explizit
+                currentGainNode.gain.setValueAtTime(0, now);
+                // Rampe zu 1.0 über die Fade-Dauer
+                currentGainNode.gain.linearRampToValueAtTime(1.0, fadeEndTime);
             }
         }
         
@@ -823,8 +906,8 @@ console.log(`startAudioPlayback called with config: ${offset}s offset, ${fade}s 
         }
         
         function resumeAudio() {
-            if (!isAudioPlaying && currentAudioBuffer && audioPausedAt > 0) {
-                const fade = currentSoundConfig ? currentSoundConfig.fade || 0 : 0;
+            if (!isAudioPlaying && currentAudioBuffer && audioPausedAt >= 0) {
+                const fade = currentSoundConfig ? (currentSoundConfig.fade || 0) : 0;
                 startAudioPlayback(audioPausedAt, fade);
             }
         }
