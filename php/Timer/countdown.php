@@ -125,6 +125,11 @@ function parseTimeValue($value) {
             outline: none;
             border-color: #4CAF50;
         }
+
+        .input-group input.url-input {
+            width: 320px;
+            max-width: min(60vw, 420px);
+        }
         
         .buttons {
             display: flex;
@@ -397,6 +402,10 @@ function parseTimeValue($value) {
                 <label for="startTime">Startzeit (MM:SS):</label>
                 <input type="text" id="startTime" value="<?php echo sprintf('%02d:%02d', floor($defaultStart/60), $defaultStart%60); ?>" pattern="[0-9]{1,2}:[0-9]{2}">
             </div>
+            <div class="input-group">
+                <label for="timerControlUrl">Timer-Control-URL:</label>
+                <input type="text" id="timerControlUrl" class="url-input" value="<?php echo htmlspecialchars($timerControlUrl, ENT_QUOTES, 'UTF-8'); ?>">
+            </div>
             <?php
             // Zeige Alarm-Zeitfelder basierend auf Config
             $alertCount = 0;
@@ -441,7 +450,6 @@ function parseTimeValue($value) {
     <script>
         // Sound-Konfiguration aus PHP
         const soundConfig = <?php echo json_encode($soundConfig); ?>;
-        const timerControlUrl = <?php echo json_encode($timerControlUrl); ?>;
         
         let startSeconds = <?php echo $defaultStart; ?>;
         let currentTime = startSeconds;
@@ -464,6 +472,7 @@ function parseTimeValue($value) {
         const pauseBtn = document.getElementById('pauseBtn');
         const statusIndicator = document.getElementById('statusIndicator');
         const startTimeInput = document.getElementById('startTime');
+        const timerControlUrlInput = document.getElementById('timerControlUrl');
         const timeInputs = document.querySelector('.time-inputs');
         //timeInputs.style.display = 'none';  // makes time inputs invisible
         const alertInfo = document.getElementById('alertInfo');
@@ -473,19 +482,29 @@ function parseTimeValue($value) {
         // Initialisiere Anzeige
         updateDisplay();
 
+        function getTimerControlUrl() {
+            return timerControlUrlInput.value.trim();
+        }
+
         // Wrapper: führt fetch auf timerControlUrl aus und aktualisiert Banner
         async function timerControlFetch(options = {}) {
+            const currentTimerControlUrl = getTimerControlUrl();
+            if (!currentTimerControlUrl) {
+                timerControlWarning.innerHTML = '<strong>&#9888; Timer-Control-URL fehlt.</strong>';
+                timerControlWarning.classList.add('visible');
+                return null;
+            }
             const controller = new AbortController();
             const timeoutId = setTimeout(() => controller.abort(), 3000);
             try {
-                const response = await fetch(timerControlUrl, {
+                const response = await fetch(currentTimerControlUrl, {
                     ...options,
                     signal: controller.signal
                 });
                 timerControlWarning.classList.remove('visible');
                 return response;
             } catch (err) {
-                timerControlWarning.innerHTML = `<strong>&#9888; Timer-Control-URL nicht erreichbar:</strong> ${timerControlUrl}`;
+                timerControlWarning.innerHTML = `<strong>&#9888; Timer-Control-URL nicht erreichbar:</strong> ${currentTimerControlUrl}`;
                 timerControlWarning.classList.add('visible');
                 return null;
             } finally {
