@@ -3,21 +3,19 @@
   "_usage": "Passe die Namen und Gruppen an deine Teams an, dann 'python main.py' ausführen",
 
   "teams": [
-    {"id": 1, "name": "Ostblocker Radebeul"},
-    {"id": 2, "name": "Mit Verspätung"},
-    {"id": 3, "name": "Baller die Waldfee"},
-    {"id": 4, "name": "Chaos Crew"},
-    {"id": 5, "name": "Otti 1"},
-    {"id": 6, "name": "BSV Medingen"},
-    {"id": 7, "name": "Sechs auf dem Feld"},
-    {"id": 8, "name": "Ersatzbank"},
-    {"id": 9, "name": "RegionalExpress"},
-    {"id": 10, "name": "Otti 2"}
+    {"id": 1, "name": "Ottis 1"},
+    {"id": 2, "name": "Ottis 2"},
+    {"id": 3, "name": "Ostblocker Radebeul"},
+    {"id": 4, "name": "Unicorns"},
+    {"id": 5, "name": "Baller die Waldfee"},
+    {"id": 6, "name": "Chaos Crew"},
+    {"id": 7, "name": "BSV Medingen"},
+    {"id": 8, "name": "Sechs auf dem Feld"},
+    {"id": 9, "name": "Ketzer Volley's"},
+    {"id": 10, "name": "Freispiel"}
+
   ],
   "warteliste": [
-    {"id": 11, "name": "Hermsdorfer SV"},
-    {"id": 12, "name": "Lomnitzer SV"},
-    {"id": 13, "name": "Unicorns"},
     {"id": 14, "name": "SC EU"},
     {"id": 15, "name": "Netzfetzer (Nossen)"}
   ]
