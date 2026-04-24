@@ -369,17 +369,12 @@ for ($page = 0; $page < $pageCount; $page++) {
             
             <div class="result-grid sets-<?= $setsPerMatch ?>">
                 <div></div>
-                <?php for ($s = 1; $s <= $setsPerMatch; $s++) { ?>
-                <div class="result-header">Satz <?= $s ?></div>
-                <?php } ?>
+                <div class="result-header">Team 1</div>
+                <div class="result-header">Team 2</div>
                 
-                <div class="result-label">Team 1</div>
                 <?php for ($s = 1; $s <= $setsPerMatch; $s++) { ?>
+                <div class="result-label">Satz <?= $s ?></div>
                 <div class="result-box team1-box"></div>
-                <?php } ?>
-                
-                <div class="result-label">Team 2</div>
-                <?php for ($s = 1; $s <= $setsPerMatch; $s++) { ?>
                 <div class="result-box team2-box"></div>
                 <?php } ?>
             </div>
